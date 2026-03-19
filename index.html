@@ -24,12 +24,11 @@
     </style>
  </head>
  <body class="min-h-screen">
-  <!-- Header -->
   <div class="bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-4 md:p-6 shadow-lg">
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex items-center bg-white bg-opacity-20 rounded-full px-4 py-1.5 shadow-sm">
-      <span class="text-white text-xs font-bold tracking-wide">✨ เวอร์ชัน 39 (Holiday Tab & Direct Search Logic)</span> 
+      <span class="text-white text-xs font-bold tracking-wide">✨ เวอร์ชัน 40 (Fixed Buddhist Holiday Bug)</span> 
       <span class="text-teal-100 text-xs ml-2 border-l border-teal-300 pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -56,7 +55,6 @@
       </div>
      </div>
     </div>
-    <!-- ปุ่มมือถือ -->
     <div class="flex space-x-2 mt-4 justify-center md:hidden">
         <button onclick="resetAll()" class="bg-white text-teal-700 px-4 py-2 rounded-lg font-bold text-sm shadow flex-1"> 🔄 รีเซ็ตข้อมูล (เริ่มใหม่) </button>
     </div>
@@ -64,28 +62,23 @@
   </div>
 
   <div class="max-w-5xl mx-auto p-4 md:p-6">
-   <!-- 🌟 ส่วนเมนู (Tabs) -->
    <div class="bg-white rounded-xl shadow-md mb-6 overflow-x-auto no-scrollbar border border-gray-100">
     <div class="flex border-b min-w-max">
-     <!-- แท็บ 1: นัดหมายตามอายุ -->
      <button onclick="showTab('normal')" id="normalTab" class="flex-1 py-4 px-6 text-center font-black text-blue-600 border-b-4 border-blue-600 bg-blue-50/50 whitespace-nowrap transition-colors">
       <div class="flex items-center justify-center space-x-2">
        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" /></svg><span>นัดหมายตามอายุ</span>
       </div>
      </button> 
-     <!-- แท็บ 2: วัคซีนล่าช้า -->
      <button onclick="showTab('delayed')" id="delayedTab" class="flex-1 py-4 px-6 text-center font-bold text-gray-500 hover:text-orange-600 border-b-4 border-transparent hover:bg-gray-50 whitespace-nowrap transition-colors">
       <div class="flex items-center justify-center space-x-2">
        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" /></svg><span>ค้นหาวันฉีด / ล่าช้า</span>
       </div>
      </button>
-     <!-- แท็บ 3: แผนการฉีดวัคซีน -->
      <button onclick="showTab('schedule')" id="scheduleTab" class="flex-1 py-4 px-6 text-center font-bold text-gray-500 hover:text-green-600 border-b-4 border-transparent hover:bg-gray-50 whitespace-nowrap transition-colors">
       <div class="flex items-center justify-center space-x-2">
        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg><span>แผนการฉีดวัคซีน</span>
       </div>
      </button>
-     <!-- แท็บ 4: ปฏิทินวันหยุด (ใหม่) -->
      <button onclick="showTab('holiday')" id="holidayTab" class="flex-1 py-4 px-6 text-center font-bold text-gray-500 hover:text-red-600 border-b-4 border-transparent hover:bg-gray-50 whitespace-nowrap transition-colors">
       <div class="flex items-center justify-center space-x-2">
        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z" clip-rule="evenodd" /></svg><span>ปฏิทินวันหยุด</span>
@@ -94,7 +87,6 @@
     </div>
    </div>
 
-   <!-- ==================== 1. แท็บฟอร์มกรอก: นัดหมายตามอายุ ==================== -->
    <div id="normalContent" class="max-w-2xl mx-auto">
     <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100">
      <h2 class="text-xl font-black text-gray-800 mb-6 flex items-center border-b pb-4">
@@ -127,7 +119,6 @@
     </div>
    </div>
 
-   <!-- ==================== 2. แท็บฟอร์มกรอก: ค้นหาวันฉีด / วัคซีนล่าช้า ==================== -->
    <div id="delayedContent" class="max-w-2xl mx-auto hidden">
     <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100">
      <h2 class="text-xl font-black text-gray-800 mb-6 flex items-center border-b pb-4">
@@ -152,7 +143,6 @@
     </div>
    </div>
 
-   <!-- ==================== 3. แท็บแผนการฉีดวัคซีน ==================== -->
    <div id="scheduleContent" class="space-y-6 hidden">
     <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 border-t-8 border-green-500">
         <h2 class="text-2xl font-black text-gray-800 mb-2 flex items-center">
@@ -167,7 +157,6 @@
     </div>
    </div>
 
-   <!-- ==================== 4. แท็บปฏิทินวันหยุด ==================== -->
    <div id="holidayContent" class="space-y-6 hidden">
     <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 border-t-8 border-red-500">
         <h2 class="text-2xl font-black text-gray-800 mb-6 flex items-center border-b pb-4">
@@ -176,20 +165,15 @@
         </h2>
         
         <div id="holidayListContent">
-            <!-- ตารางวันหยุดจะถูกสร้างที่นี่ตอนโหลดข้อมูลเสร็จ -->
-        </div>
+            </div>
     </div>
    </div>
 
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- 🌟🌟 NEW: SUPER POP-UP สรุปผลลัพธ์ (แสดงจอเดียวจบ ไม่ต้องเลื่อน) 🌟🌟 -->
-  <!-- ========================================================================= -->
   <div id="resultModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] hidden flex flex-col items-center justify-center p-2 sm:p-6 transition-opacity duration-150">
    <div class="bg-gray-100 rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col overflow-hidden max-h-[98vh] modal-enter border border-white/20">
     
-    <!-- Modal Header -->
     <div class="bg-slate-800 text-white p-3 sm:p-4 flex justify-between items-center shadow-md z-10">
      <h2 id="modalTitle" class="text-lg md:text-xl font-black flex items-center tracking-wide">
       <span class="text-2xl mr-2">✨</span> สรุปผลการคำนวณ
@@ -199,10 +183,8 @@
      </button>
     </div>
     
-    <!-- Modal Body -->
     <div class="p-3 md:p-6 overflow-y-auto flex-1 flex flex-col gap-4 bg-[#f8fafc]">
         
-        <!-- 🎯 แถวที่ 1: ข้อมูลอายุ + ปุ่มก๊อปปี้ข้อความพยาบาล (โชว์เฉพาะโหมดปกติ) -->
         <div id="modalAgeSection" class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 hidden">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div class="bg-blue-50 border border-blue-200 p-2 rounded-lg flex flex-col justify-center items-center text-center shadow-inner">
@@ -213,28 +195,22 @@
                     <span class="text-blue-600 font-bold text-[11px] mb-1">อายุ (สัปดาห์)</span>
                     <span id="modalAgeWeeks" class="text-base md:text-lg font-black text-blue-900 leading-none"></span>
                 </div>
-                <!-- ปุ่ม Copy ใหญ่เบิ้ม แต่ตัวหนังสือเล็กเพื่อให้คงความถูกต้อง 100% -->
                 <div class="col-span-2 bg-gray-50 border border-gray-200 p-2.5 rounded-lg flex flex-col justify-between shadow-inner">
                     <div class="flex justify-between items-center mb-1.5">
                         <span class="text-gray-700 font-black text-xs flex items-center">📝 ข้อความแนะนำ (ก๊อปปี้ลง HosXP ได้เลย)</span>
                         <button onclick="copyStaffText()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm border border-blue-700">📋 คัดลอกข้อความ</button>
                     </div>
-                    <!-- ข้อความถูกฝังไว้เต็ม 100% ห้ามตัดทอน! -->
                     <div id="staffText" class="text-[10px] text-gray-500 leading-tight">นั่งสังเกตอาการ 30 นาที หลังจากฉีดวัคซีน หากมีผื่นขึ้นตามร่างกาย ร้องกวนมาก ให้แจ้งเจ้าหน้าที่ เมื่อกลับบ้าน หากมีไข้ ให้เช็ดตัวลดไข้ รับประทานยาลดไข้ทุก 4-6 ชั่วโมง ถ้ามีอาการบวม แดง บริเวณที่ฉีดวัคซีนให้ประคบเย็น โดยใช้ผ้าห่อน้ำแข็ง /ไอซ์แพ็ค ประคบ ถ้ามีไข้สูงเกิน 3 วัน ให้กลับมาพบแพทย์<br>แผนการดูแลต่อเนื่อง<br>เฝ้าระวังอาการ AEFI หลังฉีดวัคซีน</div>
                 </div>
             </div>
         </div>
 
-        <!-- 🎯 แถวที่ 2: กริดหลัก (ซ้าย: วันนัดครั้งถัดไป / วันที่ค้นหา, ขวา: วัคซีนวันนี้ / วัคซีนที่ค้นหา) -->
         <div class="grid md:grid-cols-2 gap-4">
-            <!-- ⬅️ ซ้าย: วันนัดครั้งถัดไป (สีม่วง/ส้ม) -->
             <div id="modalNextApptContent" class="hidden h-full"></div>
 
-            <!-- ➡️ ขวา: วัคซีนวันนี้ (สีเขียว) -->
             <div id="modalCurrentVaccineContent" class="hidden h-full"></div>
         </div>
         
-        <!-- 🎯 แถวที่ 3: ปฏิทิน (ด้านล่างสุด และเล็กๆ) -->
         <div id="modalCalendarArea" class="hidden mt-2">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden w-full max-w-lg mx-auto">
                 <div class="bg-gray-50 border-b border-gray-200 p-2 flex justify-between items-center">
@@ -250,8 +226,6 @@
     </div>
    </div>
   </div>
-  <!-- ========================================================================= -->
-
   <script>
         // =========================================================
         // 🌟🌟 ฟังก์ชันควบคุม Modal 🌟🌟
@@ -294,6 +268,7 @@
                 document.getElementById('syncStatus').innerHTML = "✅ พร้อมใช้งาน";
                 document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-teal-200');
             } catch (error) {
+                console.error("🔥 WCC System Error:", error); // ให้ Console ฟ้องสีแดงชัดๆ เผื่ออนาคต
                 document.getElementById('syncStatus').innerHTML = "❌ ขัดข้อง กรุณารีเฟรช";
                 document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-red-300');
             }
@@ -626,7 +601,7 @@
 
         // --- สร้างการ์ดสีส้ม (หาวันฉีดแบบเจาะจง สำหรับโหมดค้นหา) เอาไว้ฝั่งซ้าย ---
         function buildSpecificAppointmentModalCard(code, targetDate, bDate) {
-            const targetVac = vaccineSchedules[code]; // หาของอายุที่เลือกเลย ไม่หาของ nextAge
+            const targetVac = vaccineSchedules[code]; 
             const container = document.getElementById('modalNextApptContent');
 
             let apptDate = findNextApptDate(targetDate, targetVac.weeks);
@@ -807,6 +782,7 @@
             document.getElementById('holidayTableContainer').innerHTML = tableHtml;
         }
 
+        // ================= FIX IS HERE =================
         function getAllHolidaysForYear(year) {
             const holidays = [];
             Object.entries(fixedHolidays).forEach(([md, name]) => {
@@ -816,7 +792,8 @@
             });
             if (buddhistHolidayOffsets[year]) {
                 const b = buddhistHolidayOffsets[year];
-                [{d:b.makha,n:'มาฆบูชา'},{d:b.visakha,n:'วิสาขบูชา'},{d:b.asanha,n:'อาสาฬหบูชา'},{d:b.khao_phansa,n:'เข้าพรรษา'}].forEach(h => {
+                // แก้ตัวแปรกลับเป็น m, v, a, k ให้ตรงกับข้างบนแล้วครับ
+                [{d:b.m,n:'มาฆบูชา'},{d:b.v,n:'วิสาขบูชา'},{d:b.a,n:'อาสาฬหบูชา'},{d:b.k,n:'เข้าพรรษา'}].forEach(h => {
                     const fullDate = `${year}-${String(h.d.getMonth()+1).padStart(2,'0')}-${String(h.d.getDate()).padStart(2,'0')}`;
                     if (dynamicHolidays[fullDate] === 'ยกเลิก') return;
                     holidays.push({ date: h.d, name: dynamicHolidays[fullDate] || h.n, type: 'buddhist' });
