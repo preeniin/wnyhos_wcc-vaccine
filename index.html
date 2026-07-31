@@ -833,10 +833,14 @@
                             </thead>
                             <tbody class="divide-y divide-black">`;
 
+                const g1Weeks = (vaccineSchedules['2m'] && vaccineSchedules['2m'].weeks && vaccineSchedules['2m'].weeks.length) ? vaccineSchedules['2m'].weeks : [1, 3, 5];
+                const g2Weeks = (vaccineSchedules['18m'] && vaccineSchedules['18m'].weeks && vaccineSchedules['18m'].weeks.length) ? vaccineSchedules['18m'].weeks : [1, 3];
+                const g3Weeks = (vaccineSchedules['9m'] && vaccineSchedules['9m'].weeks && vaccineSchedules['9m'].weeks.length) ? vaccineSchedules['9m'].weeks : [2, 4];
+
                 for (let m = 0; m < 12; m++) {
-                    const group1 = getWednesdaysForMonthGroup(year, m, [1, 3, 5]);
-                    const group2 = getWednesdaysForMonthGroup(year, m, [1, 3, 5]);
-                    const group3 = getWednesdaysForMonthGroup(year, m, [2, 4]);
+                    const group1 = getWednesdaysForMonthGroup(year, m, g1Weeks);
+                    const group2 = getWednesdaysForMonthGroup(year, m, g2Weeks);
+                    const group3 = getWednesdaysForMonthGroup(year, m, g3Weeks);
 
                     html += `
                                 <tr class="hover:bg-blue-50/50 transition-colors">
