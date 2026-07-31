@@ -87,6 +87,12 @@
             .max-w-5xl > div.bg-white.rounded-xl.shadow-md {
                 display: none !important;
             }
+            .max-w-5xl {
+                max-width: 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
             #normalContent, #delayedContent, #scheduleContent, #holidayContent {
                 display: none !important;
             }
@@ -95,28 +101,37 @@
                 padding: 0 !important;
                 margin: 0 !important;
                 max-width: 100% !important;
+                width: 100% !important;
             }
             #threeYearTablesContainer {
                 display: grid !important;
                 grid-template-columns: repeat(3, 1fr) !important;
-                gap: 6px !important;
+                gap: 10px !important;
                 width: 100% !important;
             }
             .year-table-wrapper {
                 box-shadow: none !important;
-                border: 1px solid #000 !important;
+                border: 1.5px solid #000 !important;
                 break-inside: avoid;
+                width: 100% !important;
             }
             table {
                 width: 100% !important;
                 border-collapse: collapse !important;
-                font-size: 10px !important;
+                font-size: 13px !important;
             }
             th, td {
-                border: 1px solid #000 !important;
-                padding: 2px 1px !important;
+                border: 1.5px solid #000 !important;
+                padding: 5px 3px !important;
                 text-align: center !important;
-                line-height: 1.15 !important;
+                line-height: 1.3 !important;
+                font-size: 13px !important;
+            }
+            .year-header-box {
+                font-size: 16px !important;
+                font-weight: 900 !important;
+                padding: 8px 4px !important;
+                border-bottom: 2px solid #000 !important;
             }
         }
     </style>
