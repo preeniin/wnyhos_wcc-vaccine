@@ -21,6 +21,44 @@
             from { opacity: 0; transform: scale(0.98); }
             to { opacity: 1; transform: scale(1); }
         }
+
+        /* Date input custom style */
+        .date-input-wrapper { position: relative; }
+        .date-input-wrapper .date-status {
+            position: absolute;
+            right: 12px; top: 50%; transform: translateY(-50%);
+            font-size: 18px; pointer-events: none;
+        }
+        .date-input-field {
+            width: 100%; padding: 12px 44px 12px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-family: 'Sarabun', sans-serif;
+            font-size: 1.1rem; font-weight: 700;
+            color: #374151;
+            background: white;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .date-input-field:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+        }
+        .date-input-field.valid {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.15);
+        }
+        .date-input-field.invalid {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+        }
+        .date-hint {
+            font-size: 11px; margin-top: 4px;
+            color: #9ca3af; font-weight: 600;
+        }
+        .date-hint.success { color: #059669; }
+        .date-hint.error { color: #dc2626; }
     </style>
  </head>
  <body class="min-h-screen">
@@ -28,7 +66,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex items-center bg-white bg-opacity-20 rounded-full px-4 py-1.5 shadow-sm">
-      <span class="text-white text-xs font-bold tracking-wide">✨ เวอร์ชัน 40 (Fixed Buddhist Holiday Bug)</span> 
+      <span class="text-white text-xs font-bold tracking-wide">✨ เวอร์ชัน 41 (Thai Date Input)</span> 
       <span class="text-teal-100 text-xs ml-2 border-l border-teal-300 pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -93,23 +131,47 @@
       <span class="bg-blue-100 text-blue-600 p-2 rounded-lg mr-3"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></span>
       ข้อมูลเด็ก (นัดตามเกณฑ์)
      </h2>
-     
-     <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 shadow-sm">
-      <h3 class="text-sm font-bold text-yellow-800 mb-2 flex items-center">💡 ตัวช่วยแปลง พ.ศ. เป็น ค.ศ.</h3>
-      <div class="grid grid-cols-2 gap-4">
-       <div><label class="block text-xs font-bold text-yellow-700 mb-1">กรอก ปี พ.ศ.</label> <input type="number" id="buddhistYear" placeholder="เช่น 2567" min="2400" max="2700" class="w-full p-2.5 text-sm border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-bold"></div>
-       <div><label class="block text-xs font-bold text-yellow-700 mb-1">ปี ค.ศ. (เอาไปกรอกด้านล่าง)</label> <input type="number" id="christianYear" placeholder="ผลลัพธ์" readonly class="w-full p-2.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-600 font-bold shadow-inner"></div>
-      </div>
-     </div>
 
+     <!-- ป้ายแจ้งเตือนรูปแบบวันที่ -->
+     <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-5 flex items-start gap-2 shadow-sm">
+       <span class="text-blue-500 text-lg mt-0.5">💡</span>
+       <div class="text-xs text-blue-800 font-bold leading-relaxed">
+         <span class="block text-blue-900 font-black mb-0.5">วิธีกรอก/วางวันที่</span>
+         พิมพ์หรือ <kbd class="bg-white border border-blue-300 px-1.5 py-0.5 rounded text-blue-700 font-mono text-[11px]">Ctrl+V</kbd> วางรูปแบบ 
+         <span class="bg-blue-100 px-1.5 py-0.5 rounded font-mono">วว/ดด/ปปปป</span> ได้เลย — ปีเป็น <strong>พ.ศ.</strong> หรือ ค.ศ. ก็ได้ ระบบแปลงให้อัตโนมัติ
+       </div>
+     </div>
+     
      <div class="space-y-5">
       <div>
-       <label class="block text-sm font-black text-gray-700 mb-2">🎈 วันเกิดเด็ก</label> 
-       <input type="date" id="birthDate" class="w-full p-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg text-gray-700 shadow-sm transition">
+       <label class="block text-sm font-black text-gray-700 mb-2">🎈 วันเกิดเด็ก</label>
+       <div class="date-input-wrapper">
+         <input
+           type="text"
+           id="birthDate"
+           class="date-input-field"
+           placeholder="วว/ดด/ปปปป  เช่น  15/07/2566"
+           autocomplete="off"
+           inputmode="numeric"
+         >
+         <span class="date-status" id="birthDateStatus"></span>
+       </div>
+       <div class="date-hint" id="birthDateHint">รองรับ พ.ศ. และ ค.ศ. — วางจาก HosXP ได้เลย</div>
       </div>
       <div>
-       <label class="block text-sm font-black text-gray-700 mb-2">🏥 วันที่มารับบริการ (วันนี้)</label> 
-       <input type="date" id="visitDate" class="w-full p-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg text-gray-700 shadow-sm transition">
+       <label class="block text-sm font-black text-gray-700 mb-2">🏥 วันที่มารับบริการ (วันนี้)</label>
+       <div class="date-input-wrapper">
+         <input
+           type="text"
+           id="visitDate"
+           class="date-input-field"
+           placeholder="วว/ดด/ปปปป  เช่น  31/07/2569"
+           autocomplete="off"
+           inputmode="numeric"
+         >
+         <span class="date-status" id="visitDateStatus"></span>
+       </div>
+       <div class="date-hint" id="visitDateHint">ค่าเริ่มต้น = วันนี้ (สามารถเปลี่ยนได้)</div>
       </div>
      </div>
      
@@ -207,7 +269,6 @@
 
         <div class="grid md:grid-cols-2 gap-4">
             <div id="modalNextApptContent" class="hidden h-full"></div>
-
             <div id="modalCurrentVaccineContent" class="hidden h-full"></div>
         </div>
         
@@ -226,7 +287,151 @@
     </div>
    </div>
   </div>
+
   <script>
+        // =========================================================
+        // 🌟 DATE INPUT UTILS — รองรับ DD/MM/YYYY (พ.ศ. หรือ ค.ศ.)
+        // =========================================================
+
+        /**
+         * แปลง string "DD/MM/YYYY" → Date object
+         * รองรับ พ.ศ. (ปี > 2500) และ ค.ศ. (ปี <= 2500)
+         * คืน null ถ้า parse ไม่ได้
+         */
+        function parseThaiBuddhistDate(str) {
+            if (!str || typeof str !== 'string') return null;
+            // รองรับ / หรือ - หรือ . เป็น separator
+            const cleaned = str.trim().replace(/[-.\s]/g, '/');
+            const parts = cleaned.split('/');
+            if (parts.length !== 3) return null;
+            let d = parseInt(parts[0], 10);
+            let m = parseInt(parts[1], 10);
+            let y = parseInt(parts[2], 10);
+            if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+            if (d < 1 || d > 31 || m < 1 || m > 12) return null;
+            // แปลง พ.ศ. → ค.ศ.
+            if (y > 2500) y -= 543;
+            if (y < 1900 || y > 2100) return null;
+            const date = new Date(y, m - 1, d);
+            // ตรวจสอบวันที่ถูกต้อง (เช่น 31/02 ไม่มีจริง)
+            if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+            return date;
+        }
+
+        /**
+         * Format Date → "DD/MM/YYYY (พ.ศ.)" สำหรับแสดงผล
+         */
+        function formatThaiDate(date) {
+            if (!date) return '';
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear() + 543;
+            const dayNames = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
+            return `${d}/${m}/${y} (${dayNames[date.getDay()]})`;
+        }
+
+        /**
+         * อัปเดต UI ของ date input field (valid/invalid state)
+         */
+        function updateDateFieldState(inputId, statusId, hintId) {
+            const input = document.getElementById(inputId);
+            const statusEl = document.getElementById(statusId);
+            const hintEl = document.getElementById(hintId);
+            const val = input.value.trim();
+
+            if (!val) {
+                input.classList.remove('valid', 'invalid');
+                statusEl.textContent = '';
+                hintEl.textContent = inputId === 'visitDate'
+                    ? 'ค่าเริ่มต้น = วันนี้ (สามารถเปลี่ยนได้)'
+                    : 'รองรับ พ.ศ. และ ค.ศ. — วางจาก HosXP ได้เลย';
+                hintEl.className = 'date-hint';
+                return null;
+            }
+
+            const parsed = parseThaiBuddhistDate(val);
+            if (parsed) {
+                input.classList.remove('invalid');
+                input.classList.add('valid');
+                statusEl.textContent = '✅';
+                hintEl.textContent = '→ ' + formatThaiDate(parsed);
+                hintEl.className = 'date-hint success';
+                return parsed;
+            } else {
+                input.classList.remove('valid');
+                input.classList.add('invalid');
+                statusEl.textContent = '❌';
+                hintEl.textContent = 'รูปแบบไม่ถูกต้อง ใช้ วว/ดด/ปปปป เช่น 15/07/2566';
+                hintEl.className = 'date-hint error';
+                return null;
+            }
+        }
+
+        /**
+         * ดึง Date จาก input field (คืน null ถ้า invalid)
+         */
+        function getDateFromField(inputId) {
+            const val = document.getElementById(inputId).value.trim();
+            return parseThaiBuddhistDate(val);
+        }
+
+        /**
+         * ตั้งค่า field เป็นวันที่ที่ระบุ (แสดงรูปแบบ DD/MM/YYYY พ.ศ.)
+         */
+        function setDateField(inputId, date) {
+            if (!date) return;
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear() + 543;
+            document.getElementById(inputId).value = `${d}/${m}/${y}`;
+        }
+
+        // --- ผูก event listeners ให้ fields ---
+        function setupDateFields() {
+            ['birthDate', 'visitDate'].forEach(id => {
+                const input = document.getElementById(id);
+                const statusId = id + 'Status';
+                const hintId = id + 'Hint';
+
+                // auto-format ขณะพิมพ์: เพิ่ม / อัตโนมัติ
+                input.addEventListener('input', function (e) {
+                    let val = this.value.replace(/[^0-9/]/g, '');
+                    // ถ้าไม่มี / เลย ให้ใส่อัตโนมัติ
+                    if (!val.includes('/')) {
+                        if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
+                        if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5);
+                        if (val.length > 10) val = val.slice(0, 10);
+                    }
+                    this.value = val;
+                    updateDateFieldState(id, statusId, hintId);
+                });
+
+                // จัดการ paste: แปลงรูปแบบต่างๆ
+                input.addEventListener('paste', function (e) {
+                    e.preventDefault();
+                    let pasted = (e.clipboardData || window.clipboardData).getData('text');
+                    // ทำความสะอาด: เอาแค่ตัวเลขและ separator
+                    pasted = pasted.trim();
+                    // ถ้ามาในรูป YYYY-MM-DD (ISO) เช่น 2024-07-15 → แปลงเป็น DD/MM/YYYY
+                    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(pasted)) {
+                        const p = pasted.split(/[-/]/);
+                        pasted = `${p[2].padStart(2,'0')}/${p[1].padStart(2,'0')}/${p[0]}`;
+                    }
+                    // normalize separator
+                    pasted = pasted.replace(/[-.\s]/g, '/');
+                    // เอาเฉพาะตัวเลขและ /
+                    pasted = pasted.replace(/[^0-9/]/g, '');
+                    this.value = pasted;
+                    updateDateFieldState(id, statusId, hintId);
+                });
+
+                // validate on blur
+                input.addEventListener('blur', function () {
+                    updateDateFieldState(id, statusId, hintId);
+                });
+            });
+        }
+
         // =========================================================
         // 🌟🌟 ฟังก์ชันควบคุม Modal 🌟🌟
         // =========================================================
@@ -263,12 +468,12 @@
                 isDataLoaded = true;
                 populateDelayedDropdown();
                 renderVaccineScheduleTab();
-                generateHolidayList(); // สร้างตารางวันหยุดในแท็บที่ 4
+                generateHolidayList();
                 
                 document.getElementById('syncStatus').innerHTML = "✅ พร้อมใช้งาน";
                 document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-teal-200');
             } catch (error) {
-                console.error("🔥 WCC System Error:", error); // ให้ Console ฟ้องสีแดงชัดๆ เผื่ออนาคต
+                console.error("🔥 WCC System Error:", error);
                 document.getElementById('syncStatus').innerHTML = "❌ ขัดข้อง กรุณารีเฟรช";
                 document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-red-300');
             }
@@ -341,7 +546,6 @@
             Object.keys(vaccineSchedules).forEach(code => select.innerHTML += `<option value="${code}">${vaccineSchedules[code].name}</option>`);
         }
 
-        // --- Render Tab แผนวัคซีน ---
         function renderVaccineScheduleTab() {
             let html = '<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">';
             Object.keys(vaccineSchedules).forEach(code => {
@@ -360,7 +564,6 @@
             document.getElementById('fullScheduleContainer').classList.remove('animate-pulse', 'text-center', 'py-10', 'text-gray-400');
         }
 
-        // โหลดข้อมูลเริ่มต้น
         initSystem();
 
         // =========================================================
@@ -389,17 +592,29 @@
         // =========================================================
         // 🌟🌟 ENGINE 3: UI & การคำนวณลง Modal 🌟🌟
         // =========================================================
-        document.getElementById('visitDate').valueAsDate = new Date();
-        document.getElementById('buddhistYear').addEventListener('input', function() {
-            const by = parseInt(this.value); document.getElementById('christianYear').value = (by >= 2400 && by <= 2700) ? by - 543 : '';
-        });
+
+        // ตั้งค่าเริ่มต้น: ใส่วันนี้ใน visitDate
         setInterval(() => {
             document.getElementById('currentDateTime').textContent = new Date().toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
         }, 1000);
 
+        document.addEventListener('DOMContentLoaded', function () {
+            setupDateFields();
+            // ใส่วันนี้ใน visitDate ทันที
+            setDateField('visitDate', new Date());
+            updateDateFieldState('visitDate', 'visitDateStatus', 'visitDateHint');
+        });
+
         function resetAll() {
             document.getElementById('birthDate').value = '';
-            document.getElementById('visitDate').valueAsDate = new Date();
+            document.getElementById('birthDate').classList.remove('valid', 'invalid');
+            document.getElementById('birthDateStatus').textContent = '';
+            document.getElementById('birthDateHint').textContent = 'รองรับ พ.ศ. และ ค.ศ. — วางจาก HosXP ได้เลย';
+            document.getElementById('birthDateHint').className = 'date-hint';
+
+            setDateField('visitDate', new Date());
+            updateDateFieldState('visitDate', 'visitDateStatus', 'visitDateHint');
+
             document.getElementById('delayedAge').value = '';
             closeResultModal();
             showTab('normal');
@@ -425,20 +640,22 @@
         // --- คำนวณปกติ -> เด้งเข้า Modal ---
         function calculateAge() {
             if (!isDataLoaded) return alert('⏳ กำลังโหลดฐานข้อมูล กรุณารอสักครู่');
-            const bDate = new Date(document.getElementById('birthDate').value), vDate = new Date(document.getElementById('visitDate').value);
-            if (!bDate || isNaN(bDate)) return alert('⚠️ กรุณากรอกวันเกิดเด็ก');
+
+            const bDate = getDateFromField('birthDate');
+            const vDate = getDateFromField('visitDate');
+
+            if (!bDate) return alert('⚠️ กรุณากรอกวันเกิดเด็กให้ถูกต้อง (รูปแบบ วว/ดด/ปปปป)');
+            if (!vDate) return alert('⚠️ กรุณากรอกวันที่มารับบริการให้ถูกต้อง (รูปแบบ วว/ดด/ปปปป)');
             if (bDate > vDate) return alert('⚠️ วันเกิดห้ามมากกว่าวันที่มารับบริการ');
 
             const age = calculateDetailedAge(bDate, vDate);
             
-            // 1. ใส่ข้อมูลในแถบด้านบน
             document.getElementById('modalAgeYMD').textContent = `${age.years} ปี ${age.months} เดือน ${age.days} วัน`;
             document.getElementById('modalAgeWeeks').textContent = `${age.weeks} สัปดาห์`;
             document.getElementById('modalAgeSection').classList.remove('hidden');
 
             const code = determineVaccineAge(age);
             
-            // 2. ล้างข้อมูลเก่า
             const cvc = document.getElementById('modalCurrentVaccineContent');
             const nnc = document.getElementById('modalNextApptContent');
             cvc.innerHTML = ''; nnc.innerHTML = ''; cvc.classList.add('hidden'); nnc.classList.add('hidden');
@@ -454,22 +671,16 @@
             showResultModal("ผลประมวลผล (ตามเกณฑ์ปกติ)");
         }
 
-        // --- ค้นหาตรงๆ (อดีต "ล่าช้า") -> เด้งเข้า Modal ---
+        // --- ค้นหาตรงๆ -> เด้งเข้า Modal ---
         function calculateDelayedVaccine() {
             if (!isDataLoaded) return alert('⏳ กำลังโหลดฐานข้อมูล กรุณารอสักครู่');
             const code = document.getElementById('delayedAge').value;
             if (!code) return alert('⚠️ กรุณาเลือกอายุที่ต้องการนัด');
 
-            const bDateStr = document.getElementById('birthDate').value;
-            const bDate = bDateStr ? new Date(bDateStr) : null;
-            
-            // ซ่อนแถบอายุ เพราะเราค้นหาตรงๆ
-            document.getElementById('modalAgeSection').classList.add('hidden');
+            const bDate = getDateFromField('birthDate');
 
-            // การ์ดขวา: แสดงข้อมูลวัคซีนของอายุที่เลือก
+            document.getElementById('modalAgeSection').classList.add('hidden');
             buildCurrentVaccineModalCard(code, `💉 วัคซีนสำหรับ ${vaccineSchedules[code].name}`);
-            
-            // การ์ดซ้าย: แสดงวันที่เปิดให้บริการของ "อายุที่เลือก" (ไม่ต้องหา nextAge แล้ว)
             buildSpecificAppointmentModalCard(code, new Date(), bDate);
             
             showResultModal("ผลการค้นหาวันที่เปิดให้บริการ");
@@ -502,7 +713,6 @@
             return diff < 0 ? `ผ่านมาแล้ว ${Math.abs(diff)}` : diff === 0 ? 'วันนี้' : diff; 
         }
 
-        // --- สร้างการ์ดสีเขียว (วัคซีนวันนี้ / วัคซีนที่ค้นหา) เอาไว้ฝั่งขวา ---
         function buildCurrentVaccineModalCard(code, titleText) {
             const vac = vaccineSchedules[code];
             let list = vac.vaccines.map(v => `<div class="flex items-center bg-white rounded p-2 shadow-sm border border-green-100"><span class="text-xl mr-3">${v.type==='injection'?'💉':'💊'}</span><div class="leading-tight"><div class="font-black text-green-900">${v.name}</div><div class="text-[11px] text-green-700 font-bold">${v.thai}</div></div></div>`).join('');
@@ -520,7 +730,6 @@
             container.innerHTML = html; container.classList.remove('hidden');
         }
 
-        // --- สร้างการ์ดสีม่วง (วันนัดถัดไป สำหรับโหมดปกติ) เอาไว้ฝั่งซ้าย ---
         function buildNextAppointmentModalCard(code, startCalcDate, bDate, mode) {
             const currVac = vaccineSchedules[code];
             const container = document.getElementById('modalNextApptContent');
@@ -599,7 +808,6 @@
             displayCalendar(apptDate);
         }
 
-        // --- สร้างการ์ดสีส้ม (หาวันฉีดแบบเจาะจง สำหรับโหมดค้นหา) เอาไว้ฝั่งซ้าย ---
         function buildSpecificAppointmentModalCard(code, targetDate, bDate) {
             const targetVac = vaccineSchedules[code]; 
             const container = document.getElementById('modalNextApptContent');
@@ -665,7 +873,6 @@
             displayCalendar(apptDate);
         }
 
-        // ลอจิกสำคัญ: หาวันนัดที่ตรงกับวันพุธ + สัปดาห์ที่ให้บริการ + ไม่ตรงวันหยุด (รับประกันความถูกต้อง)
         function findNextApptDate(start, weeks) {
             let d = new Date(start); while (d.getDay() !== 3) d.setDate(d.getDate() + 1);
             for(let i=0; i<100; i++) {
@@ -684,7 +891,6 @@
             return alt;
         }
 
-        // --- ปฏิทินใน Modal ---
         let calBaseDate = new Date(); let calSelDate = new Date();
         function selectCalendarDate(iso) { displayCalendar(new Date(iso)); }
         function displayCalendar(date) { calSelDate = new Date(date); calBaseDate = new Date(date); renderCal(); }
@@ -716,7 +922,7 @@
         }
 
         // =========================================================
-        // 🌟🌟 5. หน้าต่างรายการวันหยุดแบบตารางกะทัดรัด (ย้ายมาลงแท็บ) 🌟🌟
+        // 🌟🌟 5. หน้าต่างรายการวันหยุด (แท็บที่ 4) 🌟🌟
         // =========================================================
         function generateHolidayList() {
             const currentYear = new Date().getFullYear();
@@ -782,7 +988,6 @@
             document.getElementById('holidayTableContainer').innerHTML = tableHtml;
         }
 
-        // ================= FIX IS HERE =================
         function getAllHolidaysForYear(year) {
             const holidays = [];
             Object.entries(fixedHolidays).forEach(([md, name]) => {
@@ -792,7 +997,6 @@
             });
             if (buddhistHolidayOffsets[year]) {
                 const b = buddhistHolidayOffsets[year];
-                // แก้ตัวแปรกลับเป็น m, v, a, k ให้ตรงกับข้างบนแล้วครับ
                 [{d:b.m,n:'มาฆบูชา'},{d:b.v,n:'วิสาขบูชา'},{d:b.a,n:'อาสาฬหบูชา'},{d:b.k,n:'เข้าพรรษา'}].forEach(h => {
                     const fullDate = `${year}-${String(h.d.getMonth()+1).padStart(2,'0')}-${String(h.d.getDate()).padStart(2,'0')}`;
                     if (dynamicHolidays[fullDate] === 'ยกเลิก') return;
