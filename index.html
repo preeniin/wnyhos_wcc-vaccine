@@ -59,6 +59,66 @@
         }
         .date-hint.success { color: #059669; }
         .date-hint.error { color: #dc2626; }
+
+        /* Print styles */
+        .year-bg-1 { background-color: #ff7da7 !important; color: #000 !important; }
+        .year-bg-2 { background-color: #00e5ff !important; color: #000 !important; }
+        .year-bg-3 { background-color: #ffeb3b !important; color: #000 !important; }
+        .th-bg-col1 { background-color: #fff176 !important; color: #000 !important; }
+        .th-bg-col2 { background-color: #c8e6c9 !important; color: #000 !important; }
+        .th-bg-col3 { background-color: #ffcc80 !important; color: #000 !important; }
+
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 4mm 6mm;
+            }
+            body {
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print, header, nav, button, select, input, .no-scrollbar, #resultModal, #syncStatus, .date-status, .date-hint {
+                display: none !important;
+            }
+            body > div:first-child,
+            .max-w-5xl > div.bg-white.rounded-xl.shadow-md {
+                display: none !important;
+            }
+            #normalContent, #delayedContent, #scheduleContent, #holidayContent {
+                display: none !important;
+            }
+            #printTableContent {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+            }
+            #threeYearTablesContainer {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 6px !important;
+                width: 100% !important;
+            }
+            .year-table-wrapper {
+                box-shadow: none !important;
+                border: 1px solid #000 !important;
+                break-inside: avoid;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 10px !important;
+            }
+            th, td {
+                border: 1px solid #000 !important;
+                padding: 2px 1px !important;
+                text-align: center !important;
+                line-height: 1.15 !important;
+            }
+        }
     </style>
  </head>
  <body class="min-h-screen">
@@ -120,6 +180,11 @@
      <button onclick="showTab('holiday')" id="holidayTab" class="flex-1 py-4 px-6 text-center font-bold text-gray-500 hover:text-red-600 border-b-4 border-transparent hover:bg-gray-50 whitespace-nowrap transition-colors">
       <div class="flex items-center justify-center space-x-2">
        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z" clip-rule="evenodd" /></svg><span>ปฏิทินวันหยุด</span>
+      </div>
+     </button>
+     <button onclick="showTab('printTable')" id="printTableTab" class="flex-1 py-4 px-6 text-center font-bold text-gray-500 hover:text-purple-600 border-b-4 border-transparent hover:bg-gray-50 whitespace-nowrap transition-colors">
+      <div class="flex items-center justify-center space-x-2">
+       <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0v3H7V4h6zm-8 8v4h6v-4H5z" /></svg><span>ตาราง 3 ปี (พิมพ์)</span>
       </div>
      </button>
     </div>
@@ -228,6 +293,35 @@
         
         <div id="holidayListContent">
             </div>
+    </div>
+   </div>
+
+   <div id="printTableContent" class="space-y-6 hidden">
+    <div class="bg-white rounded-2xl shadow-lg p-4 md:p-6 border-t-8 border-purple-500 no-print">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 mb-4">
+            <div>
+                <h2 class="text-xl md:text-2xl font-black text-gray-800 flex items-center">
+                    <span class="mr-2 text-2xl">🖨️</span> ตารางให้บริการคลินิกวัคซีนเด็ก 3 ปี
+                </h2>
+                <p class="text-xs md:text-sm text-gray-600 font-medium mt-1">
+                    ตารางล่วงหน้า 3 ปี หักวันหยุดและคำนวณตามรอบวันพุธเรียบร้อยแล้ว (จัดรูปแบบสำหรับการพิมพ์ / PDF)
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="flex items-center space-x-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                    <label class="font-bold text-purple-900 text-sm whitespace-nowrap">📅 ปีเริ่มต้น:</label>
+                    <select id="startYearSelect" onchange="render3YearTables()" class="bg-transparent text-purple-700 font-black cursor-pointer outline-none text-base border-none">
+                    </select>
+                </div>
+                <button onclick="window.print()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl hover:from-purple-700 hover:to-indigo-700 transition font-black text-sm shadow-md flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0v3H7V4h6zm-8 8v4h6v-4H5z"/></svg>
+                    <span>พิมพ์ตาราง (Print PDF)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="threeYearTablesContainer" class="grid grid-cols-1 xl:grid-cols-3 gap-6">
     </div>
    </div>
 
@@ -469,6 +563,8 @@
                 populateDelayedDropdown();
                 renderVaccineScheduleTab();
                 generateHolidayList();
+                populateStartYearDropdown();
+                render3YearTables();
                 
                 document.getElementById('syncStatus').innerHTML = "✅ พร้อมใช้งาน";
                 document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-teal-200');
@@ -621,20 +717,129 @@
         }
 
         function showTab(tab) {
-            ['normal', 'delayed', 'schedule', 'holiday'].forEach(t => {
+            ['normal', 'delayed', 'schedule', 'holiday', 'printTable'].forEach(t => {
                 const btn = document.getElementById(t + 'Tab'), content = document.getElementById(t + 'Content');
+                if (!btn || !content) return;
                 if (t === tab) {
                     btn.classList.add('border-blue-600', 'bg-blue-50/50', 'text-blue-600', 'font-black');
                     btn.classList.remove('border-transparent', 'text-gray-500', 'font-bold', 'hover:bg-gray-50');
                     if(t==='delayed') btn.classList.replace('border-blue-600','border-orange-500'), btn.classList.replace('text-blue-600','text-orange-600'), btn.classList.replace('bg-blue-50/50','bg-orange-50/50');
                     if(t==='schedule') btn.classList.replace('border-blue-600','border-green-500'), btn.classList.replace('text-blue-600','text-green-600'), btn.classList.replace('bg-blue-50/50','bg-green-50/50');
                     if(t==='holiday') btn.classList.replace('border-blue-600','border-red-500'), btn.classList.replace('text-blue-600','text-red-600'), btn.classList.replace('bg-blue-50/50','bg-red-50/50');
+                    if(t==='printTable') btn.classList.replace('border-blue-600','border-purple-600'), btn.classList.replace('text-blue-600','text-purple-600'), btn.classList.replace('bg-blue-50/50','bg-purple-50/50');
                     content.classList.remove('hidden');
+                    if (t === 'printTable') render3YearTables();
                 } else {
                     btn.className = "flex-1 py-4 px-6 text-center font-bold text-gray-500 hover:text-gray-800 border-b-4 border-transparent hover:bg-gray-50 whitespace-nowrap transition-colors";
                     content.classList.add('hidden');
                 }
             });
+        }
+
+        // =========================================================
+        // 🌟🌟 6. ระบบคำนวณและแสดงตาราง 3 ปีสำหรับพิมพ์ (PDF / A4) 🌟🌟
+        // =========================================================
+        function getWednesdaysForMonthGroup(year, month, weeks) {
+            const dates = [];
+            let d = new Date(year, month, 1);
+            while (d.getDay() !== 3) {
+                d.setDate(d.getDate() + 1);
+            }
+            while (d.getMonth() === month) {
+                const weekNum = Math.ceil(d.getDate() / 7);
+                const isHol = getHolidayForDate(d);
+                if (weeks.includes(weekNum) && !isHol) {
+                    dates.push(d.getDate());
+                }
+                d.setDate(d.getDate() + 7);
+            }
+            return dates.join(', ') || '-';
+        }
+
+        function populateStartYearDropdown() {
+            const select = document.getElementById('startYearSelect');
+            if (!select) return;
+            const currentYear = new Date().getFullYear();
+            let html = '';
+            for (let i = -1; i <= 3; i++) {
+                const y = currentYear + i;
+                const bYear = y + 543;
+                const shortYear = bYear % 100;
+                const selected = (y === 2025 || (currentYear >= 2025 && i === 0)) ? 'selected' : '';
+                html += `<option value="${y}" ${selected}>พ.ศ. ${bYear} (ปี ${shortYear} - ${shortYear+2})</option>`;
+            }
+            select.innerHTML = html;
+        }
+
+        function render3YearTables() {
+            const startYearSelect = document.getElementById('startYearSelect');
+            const startYear = startYearSelect ? parseInt(startYearSelect.value) : 2025;
+            const container = document.getElementById('threeYearTablesContainer');
+            if (!container) return;
+
+            const monthNames = [
+                "1.มกราคม", "2.กุมภาพันธ์", "3.มีนาคม", "4.เมษายน",
+                "5.พฤษภาคม", "6.มิถุนายน", "7.กรกฎาคม", "8.สิงหาคม",
+                "9.กันยายน", "10.ตุลาคม", "11.พฤศจิกายน", "12.ธันวาคม"
+            ];
+
+            const yearColors = ['year-bg-1', 'year-bg-2', 'year-bg-3'];
+            const inlineHeaderColors = ['#ff7da7', '#00e5ff', '#ffeb3b'];
+
+            let html = '';
+
+            for (let yrIndex = 0; yrIndex < 3; yrIndex++) {
+                const year = startYear + yrIndex;
+                const bYear = year + 543;
+                const shortYear = bYear % 100;
+                const colorClass = yearColors[yrIndex];
+                const bgColor = inlineHeaderColors[yrIndex];
+
+                html += `
+                <div class="year-table-wrapper bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden flex flex-col">
+                    <div class="year-header-box ${colorClass} text-center py-2.5 px-3 font-black text-base md:text-lg border-b border-black tracking-tight" style="background-color: ${bgColor}; color: #000;">
+                        ตารางให้บริการคลินิกวัคซีนเด็กปี ${shortYear}
+                    </div>
+                    <div class="overflow-x-auto flex-1">
+                        <table class="w-full text-xs border-collapse border border-black text-center font-bold">
+                            <thead>
+                                <tr>
+                                    <th class="border border-black bg-gray-100 p-1.5 w-20 text-gray-800 font-black">อายุ</th>
+                                    <th class="border border-black th-bg-col1 p-1.5 font-black text-gray-900" style="background-color: #fff176;">2, 4, 6 เดือน</th>
+                                    <th class="border border-black th-bg-col2 p-1.5 font-black text-gray-900" style="background-color: #c8e6c9;">1.6ปี, 4ปี</th>
+                                    <th class="border border-black th-bg-col3 p-1.5 font-black text-gray-900" style="background-color: #ffcc80;">9เดือน, 1ปี<br>, 2.6ปี</th>
+                                </tr>
+                                <tr class="bg-gray-50 text-[11px]">
+                                    <th class="border border-black p-1 text-gray-700 font-black">ช่วงเวลา</th>
+                                    <th class="border border-black p-1 bg-[#fffde7] text-gray-800 font-black">เช้า</th>
+                                    <th class="border border-black p-1 bg-[#e8f5e9] text-gray-800 font-black">บ่าย</th>
+                                    <th class="border border-black p-1 bg-[#fff3e0] text-gray-800 font-black">เช้า</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-black">`;
+
+                for (let m = 0; m < 12; m++) {
+                    const group1 = getWednesdaysForMonthGroup(year, m, [1, 3, 5]);
+                    const group2 = getWednesdaysForMonthGroup(year, m, [1, 3, 5]);
+                    const group3 = getWednesdaysForMonthGroup(year, m, [2, 4]);
+
+                    html += `
+                                <tr class="hover:bg-blue-50/50 transition-colors">
+                                    <td class="border border-black p-1.5 bg-gray-50 text-left font-black whitespace-nowrap">${monthNames[m]}</td>
+                                    <td class="border border-black p-1.5 text-gray-900 font-bold">${group1}</td>
+                                    <td class="border border-black p-1.5 text-gray-900 font-bold">${group2}</td>
+                                    <td class="border border-black p-1.5 text-gray-900 font-bold">${group3}</td>
+                                </tr>`;
+                }
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            container.innerHTML = html;
         }
 
         // --- คำนวณปกติ -> เด้งเข้า Modal ---
