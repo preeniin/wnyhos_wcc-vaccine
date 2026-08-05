@@ -504,12 +504,13 @@
 
                 // auto-format ขณะพิมพ์: เพิ่ม / อัตโนมัติ
                 input.addEventListener('input', function (e) {
-                    let val = this.value.replace(/[^0-9/]/g, '');
-                    // ถ้าไม่มี / เลย ให้ใส่อัตโนมัติ
-                    if (!val.includes('/')) {
-                        if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
-                        if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5);
-                        if (val.length > 10) val = val.slice(0, 10);
+                    // ดึงเฉพาะตัวเลขดิบ แล้วประกอบ / ใหม่ทุกครั้ง กัน / ตัวที่สอง (เดือน/ปี) หายไป
+                    const digits = this.value.replace(/[^0-9]/g, '').slice(0, 8);
+                    let val = digits;
+                    if (digits.length > 4) {
+                        val = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+                    } else if (digits.length > 2) {
+                        val = digits.slice(0, 2) + '/' + digits.slice(2);
                     }
                     this.value = val;
                     updateDateFieldState(id, statusId, hintId);
