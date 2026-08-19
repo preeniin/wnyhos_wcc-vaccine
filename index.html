@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 43 (แก้ปัญหาเชื่อมต่อ Google Sheets ค้าง + ใช้ข้อมูลเก่าสำรองถ้าเชื่อมต่อไม่ได้)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 44 (เปิดแอปใช้งานได้ทันทีจากข้อมูลที่เคยโหลด ไม่ต้องรอ Google Sheets ตอบก่อน)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -757,16 +757,40 @@
             return cols;
         }
 
+        /** เรนเดอร์ทุกส่วนของ UI ที่ผูกกับข้อมูล Sheet ใหม่ — เรียกซ้ำได้ ไม่มีผลข้างเคียง */
+        function renderAllSheetData() {
+            populateDelayedDropdown();
+            renderVaccineScheduleTab();
+            generateHolidayList();
+            populateStartYearDropdown();
+            render3YearTables();
+        }
+
+        /**
+         * initSystem แบบ stale-while-revalidate:
+         * 1) ถ้ามีข้อมูลเก่าใน localStorage อยู่แล้ว ให้เรนเดอร์ขึ้นจอ "ทันที" โดยไม่ต้องรอเน็ตเลย
+         *    (กันปัญหาเครื่องหลายเครื่องเปิดพร้อมกันแล้วต้องรอ Google Sheets ตอบพร้อมกัน)
+         * 2) แล้วค่อยยิงขอข้อมูลสดจาก Google Sheets คู่ขนานอยู่เบื้องหลังเพื่ออัปเดตให้ล่าสุด
+         */
         async function initSystem() {
+            const cachedHolidays = localStorage.getItem('wcc_holidays_csv');
+            const cachedVaccines = localStorage.getItem('wcc_vaccines_csv');
+            const hadCache = !!(cachedHolidays && cachedVaccines);
+
+            if (hadCache) {
+                applyHolidaysCsv(cachedHolidays);
+                applyVaccinesCsv(cachedVaccines);
+                isDataLoaded = true;
+                renderAllSheetData();
+                document.getElementById('syncStatus').innerHTML = "🔄 กำลังอัปเดตข้อมูลล่าสุด...";
+                document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-teal-200');
+            }
+
             try {
                 usedCachedData = false;
                 await Promise.all([fetchSpecialHolidays(), fetchVaccineSchedules()]);
                 isDataLoaded = true;
-                populateDelayedDropdown();
-                renderVaccineScheduleTab();
-                generateHolidayList();
-                populateStartYearDropdown();
-                render3YearTables();
+                renderAllSheetData();
 
                 if (usedCachedData) {
                     document.getElementById('syncStatus').innerHTML = "⚠️ เชื่อมต่อไม่ได้ — ใช้ข้อมูลที่บันทึกไว้ล่าสุด";
@@ -777,15 +801,19 @@
                 }
             } catch (error) {
                 console.error("🔥 WCC System Error:", error);
-                document.getElementById('syncStatus').innerHTML = "❌ ขัดข้อง กรุณารีเฟรช";
-                document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-red-300');
+                if (hadCache) {
+                    // มีข้อมูลเก่าแสดงอยู่แล้วบนจอ แค่แจ้งว่าอัปเดตรอบนี้ไม่สำเร็จ ไม่ต้องขึ้น error เต็มจอ
+                    document.getElementById('syncStatus').innerHTML = "⚠️ อัปเดตข้อมูลใหม่ไม่สำเร็จ — ใช้ข้อมูลเดิมที่มี";
+                    document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-amber-200');
+                } else {
+                    document.getElementById('syncStatus').innerHTML = "❌ ขัดข้อง กรุณารีเฟรช";
+                    document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-red-300');
+                }
             }
         }
 
-        async function fetchSpecialHolidays() {
-            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv';
-            const data = await fetchCsvWithFallback(csvUrl, 'wcc_holidays_csv', 10000);
-
+        /** แปลง CSV วันหยุด → dynamicHolidays / dynamicHolidayYears (เรียกซ้ำได้ ไม่มีผลข้างเคียงแปลก ๆ) */
+        function applyHolidaysCsv(data) {
             const rows = data.split(/\r?\n/).slice(1);
             const cancelled = new Set(); // วันที่สั่ง "ยกเลิก" ไว้
             const named = {};
@@ -820,10 +848,8 @@
             cancelled.forEach(ds => { dynamicHolidays[ds] = 'ยกเลิก'; });
         }
 
-        async function fetchVaccineSchedules() {
-            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1776265610&single=true&output=csv';
-            const data = await fetchCsvWithFallback(csvUrl, 'wcc_vaccines_csv', 10000);
-
+        /** แปลง CSV ตารางวัคซีน → vaccineSchedules (เรียกซ้ำได้) */
+        function applyVaccinesCsv(data) {
             const rows = data.split(/\r?\n/).slice(1);
             rows.forEach(row => {
                 if (!row.trim()) return;
@@ -835,7 +861,7 @@
                         const p = v.split('/'); return { name: p[0]?p[0].trim():'', thai: p[1]?p[1].trim():'', type: p[2]?p[2].trim():'injection' };
                     }).filter(v => v.name !== '');
                     const weeks = cols[4].replace(/['"]/g, '').split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w));
-                    
+
                     vaccineSchedules[code] = {
                         name: cols[1].replace(/['"]/g, ''), vaccines: vacs,
                         schedule: cols[3].replace(/['"]/g, ''), weeks: weeks,
@@ -845,6 +871,18 @@
                     };
                 }
             });
+        }
+
+        async function fetchSpecialHolidays() {
+            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv';
+            const data = await fetchCsvWithFallback(csvUrl, 'wcc_holidays_csv', 10000);
+            applyHolidaysCsv(data);
+        }
+
+        async function fetchVaccineSchedules() {
+            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1776265610&single=true&output=csv';
+            const data = await fetchCsvWithFallback(csvUrl, 'wcc_vaccines_csv', 10000);
+            applyVaccinesCsv(data);
         }
 
         function populateDelayedDropdown() {
