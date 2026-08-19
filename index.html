@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 44 (เปิดแอปใช้งานได้ทันทีจากข้อมูลที่เคยโหลด ไม่ต้องรอ Google Sheets ตอบก่อน)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 45 (แก้บั๊ก v44: ค้างไม่เชื่อมต่อเลยถ้าเปิดผ่าน browser ที่บล็อก localStorage เช่น LINE)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -719,6 +719,18 @@
         let usedCachedData = false; // true = รอบนี้ Google Sheets โหลดไม่ทัน/พัง เลยใช้ข้อมูลเก่าที่เคยเซฟไว้แทน
 
         /**
+         * localStorage อาจถูกบล็อกหรือ throw ได้ (เช่นเปิดผ่าน in-app browser ของ LINE,
+         * โหมดส่วนตัว/ไม่ระบุตัวตน, หรือตั้งค่าความเป็นส่วนตัวบล็อกไว้) — ห้ามให้ error
+         * ตรงนี้ทำให้ initSystem() ทั้งฟังก์ชันพังไปเงียบ ๆ จนค้าง "กำลังเชื่อมต่อ..." ตลอดกาล
+         */
+        function safeStorageGet(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function safeStorageSet(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) { /* เก็บแคชไม่ได้ก็ไม่เป็นไร ข้ามไป ไม่ทำให้ระบบพัง */ }
+        }
+
+        /**
          * ดึง CSV จาก Google Sheets โดยมี timeout กันค้าง และ fallback ไปใช้
          * ข้อมูลที่เคยโหลดสำเร็จครั้งล่าสุด (เก็บใน localStorage) ถ้ารอบนี้พัง/ช้าเกินไป
          * เหตุผล: endpoint publish-to-web ของ Google บางจังหวะ (เช่นมีคนกำลังแก้ Sheet
@@ -732,11 +744,11 @@
                 clearTimeout(timer);
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 const text = await response.text();
-                localStorage.setItem(cacheKey, text);
+                safeStorageSet(cacheKey, text);
                 return text;
             } catch (err) {
                 clearTimeout(timer);
-                const cached = localStorage.getItem(cacheKey);
+                const cached = safeStorageGet(cacheKey);
                 if (cached) { usedCachedData = true; return cached; }
                 throw err; // ไม่มีข้อมูลเก่าสำรองเลย ต้องปล่อยให้ initSystem() จับ error จริง ๆ
             }
@@ -773,8 +785,8 @@
          * 2) แล้วค่อยยิงขอข้อมูลสดจาก Google Sheets คู่ขนานอยู่เบื้องหลังเพื่ออัปเดตให้ล่าสุด
          */
         async function initSystem() {
-            const cachedHolidays = localStorage.getItem('wcc_holidays_csv');
-            const cachedVaccines = localStorage.getItem('wcc_vaccines_csv');
+            const cachedHolidays = safeStorageGet('wcc_holidays_csv');
+            const cachedVaccines = safeStorageGet('wcc_vaccines_csv');
             const hadCache = !!(cachedHolidays && cachedVaccines);
 
             if (hadCache) {
