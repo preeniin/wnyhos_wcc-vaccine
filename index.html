@@ -716,6 +716,31 @@
         let dynamicHolidayYears = new Set(); // ปีที่เจ้าหน้าที่ลงข้อมูลใน Sheet แล้ว
         let vaccineSchedules = {};
         let isDataLoaded = false;
+        let usedCachedData = false; // true = รอบนี้ Google Sheets โหลดไม่ทัน/พัง เลยใช้ข้อมูลเก่าที่เคยเซฟไว้แทน
+
+        /**
+         * ดึง CSV จาก Google Sheets โดยมี timeout กันค้าง และ fallback ไปใช้
+         * ข้อมูลที่เคยโหลดสำเร็จครั้งล่าสุด (เก็บใน localStorage) ถ้ารอบนี้พัง/ช้าเกินไป
+         * เหตุผล: endpoint publish-to-web ของ Google บางจังหวะ (เช่นมีคนกำลังแก้ Sheet
+         * อยู่พอดี หรือหลายเครื่องขอพร้อมกัน) จะตอบช้าหรือ error โดยไม่แจ้งเตือนชัดเจน
+         */
+        async function fetchCsvWithFallback(url, cacheKey, timeoutMs) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs || 10000);
+            try {
+                const response = await fetch(url + '&t=' + new Date().getTime(), { signal: controller.signal });
+                clearTimeout(timer);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const text = await response.text();
+                localStorage.setItem(cacheKey, text);
+                return text;
+            } catch (err) {
+                clearTimeout(timer);
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) { usedCachedData = true; return cached; }
+                throw err; // ไม่มีข้อมูลเก่าสำรองเลย ต้องปล่อยให้ initSystem() จับ error จริง ๆ
+            }
+        }
 
         /**
          * แยกคอลัมน์ CSV โดยรองรับคอมมาที่อยู่ในเครื่องหมายคำพูด
@@ -734,6 +759,7 @@
 
         async function initSystem() {
             try {
+                usedCachedData = false;
                 await Promise.all([fetchSpecialHolidays(), fetchVaccineSchedules()]);
                 isDataLoaded = true;
                 populateDelayedDropdown();
@@ -741,9 +767,14 @@
                 generateHolidayList();
                 populateStartYearDropdown();
                 render3YearTables();
-                
-                document.getElementById('syncStatus').innerHTML = "✅ พร้อมใช้งาน";
-                document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-teal-200');
+
+                if (usedCachedData) {
+                    document.getElementById('syncStatus').innerHTML = "⚠️ เชื่อมต่อไม่ได้ — ใช้ข้อมูลที่บันทึกไว้ล่าสุด";
+                    document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-amber-200');
+                } else {
+                    document.getElementById('syncStatus').innerHTML = "✅ พร้อมใช้งาน";
+                    document.getElementById('syncStatus').classList.replace('text-teal-100', 'text-teal-200');
+                }
             } catch (error) {
                 console.error("🔥 WCC System Error:", error);
                 document.getElementById('syncStatus').innerHTML = "❌ ขัดข้อง กรุณารีเฟรช";
@@ -752,10 +783,9 @@
         }
 
         async function fetchSpecialHolidays() {
-            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv'; 
-            const response = await fetch(csvUrl + '&t=' + new Date().getTime());
-            const data = await response.text();
-            
+            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv';
+            const data = await fetchCsvWithFallback(csvUrl, 'wcc_holidays_csv', 10000);
+
             const rows = data.split(/\r?\n/).slice(1);
             const cancelled = new Set(); // วันที่สั่ง "ยกเลิก" ไว้
             const named = {};
@@ -792,9 +822,8 @@
 
         async function fetchVaccineSchedules() {
             const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1776265610&single=true&output=csv';
-            const response = await fetch(csvUrl + '&t=' + new Date().getTime());
-            const data = await response.text();
-            
+            const data = await fetchCsvWithFallback(csvUrl, 'wcc_vaccines_csv', 10000);
+
             const rows = data.split(/\r?\n/).slice(1);
             rows.forEach(row => {
                 if (!row.trim()) return;
