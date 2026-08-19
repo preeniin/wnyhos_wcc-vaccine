@@ -921,8 +921,6 @@
             document.getElementById('fullScheduleContainer').classList.remove('animate-pulse', 'text-center', 'py-10', 'text-gray-400');
         }
 
-        initSystem();
-
         // =========================================================
         // 🌟🌟 ENGINE 2: ฐานข้อมูลวันหยุดฝังตัว 🌟🌟
         // =========================================================
@@ -1612,6 +1610,12 @@
             });
             return holidays.sort((a, b) => a.date - b.date);
         }
+
+        // initSystem() ต้องเรียกหลังสุด ไม่ใช่กลางไฟล์เหมือนเดิม — เพราะตอนมี cache
+        // เก่าอยู่ (localStorage) มันจะเรนเดอร์ข้อมูลขึ้นจอ "ทันที" แบบ synchronous
+        // ถ้าเรียกไปตอน buddhistHolidayOffsets/fixedHolidays (ประกาศอยู่ท้ายไฟล์)
+        // ยังไม่ถูกประกาศ จะได้ ReferenceError: Cannot access ... before initialization
+        initSystem();
 
         // ปักธงว่าสคริปต์หลักอ่านจบและรันได้จริง — ตัวดักจับใน <head> ใช้ค่านี้ตัดสิน
         window.__wccBooted = true;
