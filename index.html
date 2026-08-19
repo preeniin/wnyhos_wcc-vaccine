@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 45 (แก้บั๊ก v44: ค้างไม่เชื่อมต่อเลยถ้าเปิดผ่าน browser ที่บล็อก localStorage เช่น LINE)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 46 (แก้ ReferenceError ตอนโหลดจาก cache + โหลดข้อมูลจากไฟล์ในเว็บเราเองก่อน ไม่ต้องรอ Google Sheets ทุกครั้ง)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -736,11 +736,16 @@
          * เหตุผล: endpoint publish-to-web ของ Google บางจังหวะ (เช่นมีคนกำลังแก้ Sheet
          * อยู่พอดี หรือหลายเครื่องขอพร้อมกัน) จะตอบช้าหรือ error โดยไม่แจ้งเตือนชัดเจน
          */
+        /** ต่อ cache-buster ให้ถูก ไม่ว่า url จะมี ? อยู่แล้ว (ลิงก์ Google Sheets) หรือไม่มี (ไฟล์ในเว็บเราเอง) */
+        function withCacheBuster(url) {
+            return url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+        }
+
         async function fetchCsvWithFallback(url, cacheKey, timeoutMs) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs || 10000);
             try {
-                const response = await fetch(url + '&t=' + new Date().getTime(), { signal: controller.signal });
+                const response = await fetch(withCacheBuster(url), { signal: controller.signal });
                 clearTimeout(timer);
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 const text = await response.text();
@@ -885,15 +890,32 @@
             });
         }
 
+        /**
+         * ลองโหลดจากไฟล์ CSV ที่ GitHub Action ซิงค์มาเก็บไว้ในเว็บเราเอง (data/*.csv) ก่อน —
+         * same-origin กับ GitHub Pages เลยเร็วและไม่เจอปัญหาเน็ต/CORS ของ Google เลย
+         * ถ้าหาไฟล์นี้ไม่เจอ (เช่นรันจากเครื่อง local ที่ยังไม่มีโฟลเดอร์ data/) ค่อย fallback
+         * ไปดึงตรงจาก Google Sheets เหมือนเดิม — fetchCsvWithFallback ชั้นในยังมี
+         * localStorage cache กันไว้อีกชั้นอยู่แล้วในทั้งสองเส้นทาง
+         */
         async function fetchSpecialHolidays() {
-            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv';
-            const data = await fetchCsvWithFallback(csvUrl, 'wcc_holidays_csv', 10000);
+            const googleUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv';
+            let data;
+            try {
+                data = await fetchCsvWithFallback('./data/holidays.csv', 'wcc_holidays_csv', 5000);
+            } catch (e) {
+                data = await fetchCsvWithFallback(googleUrl, 'wcc_holidays_csv', 10000);
+            }
             applyHolidaysCsv(data);
         }
 
         async function fetchVaccineSchedules() {
-            const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1776265610&single=true&output=csv';
-            const data = await fetchCsvWithFallback(csvUrl, 'wcc_vaccines_csv', 10000);
+            const googleUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1776265610&single=true&output=csv';
+            let data;
+            try {
+                data = await fetchCsvWithFallback('./data/vaccines.csv', 'wcc_vaccines_csv', 5000);
+            } catch (e) {
+                data = await fetchCsvWithFallback(googleUrl, 'wcc_vaccines_csv', 10000);
+            }
             applyVaccinesCsv(data);
         }
 

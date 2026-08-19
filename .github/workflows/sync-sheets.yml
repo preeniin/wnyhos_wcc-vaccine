@@ -1,0 +1,45 @@
+name: Sync Google Sheets data
+
+# ดึง CSV จาก Google Sheets (วันหยุด + ตารางวัคซีน) มาเก็บไว้ในไฟล์ static
+# ของ repo เอง เพื่อให้ทุกคนที่เปิดหน้าเว็บโหลดข้อมูลได้ทันทีจาก GitHub Pages
+# แทนที่จะต้องรอ Google Sheets ตอบทุกครั้งที่เปิดหน้า
+on:
+  schedule:
+    - cron: '0 * * * *' # ทุกชั่วโมง
+  workflow_dispatch: {} # กดรันเองได้จากแท็บ Actions ทันทีหลังแก้ Sheet
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch CSVs from Google Sheets
+        run: |
+          mkdir -p data
+          curl -sL --max-time 30 --fail \
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1175473865&single=true&output=csv" \
+            -o data/holidays.csv
+          curl -sL --max-time 30 --fail \
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vSh9GQi2VKFlufPsIOFGblKZVB8hAzHg-JW68Z1tyco9R_IXOnlqQ44uZDV9nxAuf-dihXFJTukJnUp/pub?gid=1776265610&single=true&output=csv" \
+            -o data/vaccines.csv
+
+      - name: Sanity check — refuse to commit empty/broken CSVs
+        run: |
+          for f in data/holidays.csv data/vaccines.csv; do
+            if [ ! -s "$f" ]; then
+              echo "::error::$f is empty — Google Sheets fetch likely failed, aborting to avoid overwriting good data"
+              exit 1
+            fi
+          done
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/holidays.csv data/vaccines.csv
+          git diff --cached --quiet && echo "No changes" || git commit -m "Sync data from Google Sheets"
+          git push
