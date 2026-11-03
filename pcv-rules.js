@@ -199,7 +199,7 @@
       if (d2.date && doses[0].date && startM < 12) {
         const gapDaysActual = Math.round((d2.date - doses[0].date) / 86400000);
         if (gapDaysActual < 56) {
-          d2.notes.push('ห่างจากเข็ม 1 ' + (gapDaysActual / 7).toFixed(1) + ' สัปดาห์ — ใช้ระยะห่างที่ลดลง (ขั้นต่ำ 4 สัปดาห์) ตามหมายเหตุข้อ 1 ของ CPG / WHO กรณีจำเป็นต้องลดระยะห่าง');
+          d2.notes.push('ใช้ระยะห่างที่ลดลง (ขั้นต่ำ 4 สัปดาห์) ตามหมายเหตุข้อ 1 ของ CPG / WHO กรณีจำเป็นต้องลดระยะห่าง');   // ตัวเลขสัปดาห์ UI แสดงเป็นการ์ดแยก
         }
       }
       doses.push(d2);
