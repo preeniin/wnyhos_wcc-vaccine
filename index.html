@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 47 · 3 พ.ย. 2569 15:16 (เพิ่มวัคซีน PCV: ช่องประวัติ, แผนรายคน, นัดเข็มเดี่ยว)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 48 · 3 พ.ย. 2569 15:19 (PCV: การ์ดนัดถัดไปแสดงนัดเดียว เอา "นัดต่อจากนั้น" ออก)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -1459,9 +1459,9 @@
         }
         /**
          * การ์ด "วันนัดครั้งถัดไป" แบบที่นัดครั้งถัดไปคือ PCV เข็มเดี่ยว (ต้องมาก่อนรอบวัคซีนปกติถัดไป)
-         * first = เข็ม PCV ที่ต้องมาก่อน, later = นัดต่อจากนั้น [{date, chips[]}] (รอบปกติถัดไป ฯลฯ) แสดงแบบเบา ๆ
+         * first = เข็ม PCV ที่ต้องมาก่อน (แสดงเฉพาะนัดนี้นัดเดียว ไม่แสดงนัดถัด ๆ ไป กันสับสนและกัน Copy ผิดวัน)
          */
-        function pcvBuildSoloNextCard(first, later, bDate) {
+        function pcvBuildSoloNextCard(first, bDate) {
             const container = document.getElementById('modalNextApptContent');
             const apptDate = first.date, hDate = formatHosxpDate(apptDate);
             const dateStr = apptDate.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
@@ -1469,10 +1469,6 @@
             const fAge = calculateDetailedAge(bDate, apptDate);
             const notes = (first.notes || []).map(t => `<div class="mt-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">${t}</div>`).join('');
             const warns = (first.warnings || []).map(t => `<div class="mt-1.5 bg-red-50 border border-red-300 text-red-800 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">⚠️ ${t}</div>`).join('');
-            const laterHtml = later.length ? `<div class="mb-3 px-1"><div class="text-[11px] font-bold text-gray-500 mb-1">นัดต่อจากนั้น</div><div class="space-y-1.5">${later.map(x => {
-                const hd = formatHosxpDate(x.date);
-                return `<div class="flex items-center justify-between gap-2 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5"><div class="min-w-0"><div class="text-xs font-black text-gray-700">${x.date.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</div><div class="flex flex-wrap gap-1 mt-0.5">${x.chips.map(c => `<span class="text-[11px] font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">${c}</span>`).join('')}</div></div><button onclick="copyDateText(event,'${hd}')" class="shrink-0 text-purple-700 hover:bg-purple-50 rounded px-1.5 py-1 text-[11px] font-bold border border-purple-200">Copy ${hd}</button></div>`;
-            }).join('')}</div></div>` : '';
             container.innerHTML = `
                 <div class="bg-purple-50 border-2 border-purple-500 rounded-2xl overflow-hidden shadow-lg h-full flex flex-col">
                     <div class="bg-gradient-to-r from-purple-600 to-indigo-500 text-white px-3 sm:px-4 py-3 font-black text-base sm:text-lg flex flex-wrap justify-between items-center gap-2 shadow-sm">
@@ -1497,7 +1493,6 @@
                         <div class="bg-blue-100 text-blue-900 text-[11px] font-bold px-3 py-2 rounded-lg mb-3 flex flex-wrap justify-between items-center gap-1 border border-blue-200">
                             <span>👶 อายุในวันนัด:</span> <span>${fAge.years} ปี ${fAge.months} เดือน ${fAge.days} วัน <span class="bg-blue-200 px-1.5 rounded ml-1">${fAge.weeks} wk</span></span>
                         </div>
-                        ${laterHtml}
                         <div class="border-t border-purple-200 pt-3">
                             <button onclick="document.getElementById('altList').classList.toggle('hidden')" class="w-full text-left text-[11px] font-bold text-purple-700 flex justify-between items-center hover:bg-purple-100 p-2 rounded transition">
                                 <span>ตัวเลือกวันนัดเผื่อ (คลิกเพื่อดู)</span> <span>▼</span>
@@ -1545,19 +1540,12 @@
                 withs.forEach(d => placed.add(d));
             }
             // ถ้ามี PCV เข็มเดี่ยวที่ต้องมา "ก่อน" วันนัดปกติถัดไป วันนัดครั้งถัดไปต้องเป็นเข็มเดี่ยวนั้น (ไม่งั้นผู้ปกครองจะข้ามนัด)
-            // ส่วนนัดปกติถัดไปและเข็มเดี่ยวที่เหลือ ย้ายไปแสดงเป็น "นัดต่อจากนั้น" ในการ์ดเดียวกัน
+            // การ์ดนี้แสดงนัดเดียว (ไม่มี "นัดต่อจากนั้น") เข็มที่เหลือไปอยู่การ์ดฟ้าด้านล่าง
             const solos = r.doses.filter(d => d.state === 'planned' && d.session && d.date && !placed.has(d)).sort((a, b) => a.date - b.date);
             if (solos.length && document.getElementById('modalNextApptContent') && (!lastNextApptDate || solos[0].date < lastNextApptDate)) {
-                const later = [];
-                if (lastNextApptDate && chipsEl) later.push({ date: lastNextApptDate, chips: [...chipsEl.children].map(e => e.textContent.trim()) });
-                solos.slice(1).forEach(d => {
-                    const same = later.find(x => sameDay(x.date, d.date));   // เข็มเดี่ยวที่ตกวันเดียวกับนัดปกติ → รวมเป็นนัดเดียว
-                    if (same) same.chips.push('PCV' + d.n);
-                    else later.push({ date: d.date, chips: ['PCV' + d.n + ' (เดี่ยว · ช่วงเช้า)'] });
-                });
-                later.sort((a, b) => a.date - b.date);
-                pcvBuildSoloNextCard(solos[0], later, bDate);
-                solos.forEach(d => placed.add(d));
+                pcvBuildSoloNextCard(solos[0], bDate);
+                placed.add(solos[0]);
+                withs.forEach(d => placed.delete(d));   // การ์ดนัดปกติถูกแทนที่แล้ว เข็มที่เคยรวมในนั้นต้องไปแสดงการ์ดล่างแทน
             }
             const rest = r.doses.filter(d => d.state !== 'given' && !placed.has(d));
             if (!rest.length) return null;
