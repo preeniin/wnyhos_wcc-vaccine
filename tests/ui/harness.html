@@ -1,0 +1,140 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>UI regression harness</title>
+<!--
+  ชุดทดสอบหน้าเว็บ (ใช้ร่วมกับ tests/ui/run.js) — โหลด /index.html จริงใน iframe, กรอกข้อมูล, เรียกฟังก์ชันของหน้า แล้วตรวจผล
+  ไม่ต้องเปิดไฟล์นี้เอง: รัน  node tests/ui/run.js  (ดูวิธีใช้ใน docs/PLAN.md)
+  พารามิเตอร์: ?step=11 (ระยะห่างของอายุที่กวาด หน่วยวัน ยิ่งน้อยยิ่งละเอียดและช้า)  &width=1000 (ความกว้าง iframe)
+-->
+<body style="margin:0">
+<pre id="result">running</pre>
+<iframe id="f" src="/index.html" style="border:0;height:900px"></iframe>
+<script>
+const q = new URLSearchParams(location.search);
+const STEP = Math.max(1, Number(q.get('step') || 11));
+const f = document.getElementById('f');
+f.style.width = (q.get('width') || '1000') + 'px';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const failures = [], stats = {};
+const fail = (group, msg) => { if (failures.length < 60) failures.push(group + ': ' + msg); stats[group + '_fail'] = (stats[group + '_fail'] || 0) + 1; };
+const count = k => { stats[k] = (stats[k] || 0) + 1; };
+
+f.onload = async () => {
+  try {
+    const w = f.contentWindow;
+    const alerts = [];
+    w.alert = m => alerts.push(String(m));
+    const jsErrors = [];
+    w.addEventListener('error', e => jsErrors.push(e.message));
+    for (let i = 0; i < 150; i++) { if (w.eval('isDataLoaded')) break; await sleep(100); }
+    await sleep(200);
+    const d = w.document, $ = id => d.getElementById(id), T = id => $(id).innerText;
+    const fmt = dt => String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0') + '/' + (dt.getFullYear() + 543);
+    const same = (a, b) => !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const BADRE = /undefined|NaN|Invalid|\[object|null/;
+    const pcvHidden = () => $('modalPcvContent').classList.contains('hidden');
+    const type = (id, v) => { const el = $(id); el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
+
+    // ---------- 0) โหลดหน้า ----------
+    if (typeof w.PCV !== 'object') fail('load', 'ไม่พบ window.PCV (pcv-rules.js ไม่โหลด)');
+    if (!w.eval('isDataLoaded')) fail('load', 'ข้อมูลวัคซีนโหลดไม่สำเร็จ');
+    if (!/เวอร์ชัน\s*\d+/.test(d.body.innerText)) fail('load', 'ไม่พบป้ายเลขเวอร์ชันบนหัวเว็บ');
+
+    // ---------- 1) กวาดอายุ × วันที่มารับบริการ × ประวัติ PCV ----------
+    const visits = [new Date(2026, 10, 4), new Date(2026, 10, 5), new Date(2026, 11, 2), new Date(2027, 0, 6)];
+    for (const vd of visits) {
+      for (let days = 70; days <= 700; days += STEP) {
+        const b = new Date(vd); b.setDate(b.getDate() - days);
+        const ageM = Math.floor(days / 30.4);
+        const hs = [['none', '']];
+        for (let sa = 2; sa <= Math.min(23, ageM); sa += 2) { hs.push(['1', String(sa)]); hs.push(['2', String(sa)]); }
+        hs.push(['done', '']);
+        for (const [h, sa] of hs) {
+          $('birthDate').value = fmt(b); $('visitDate').value = fmt(vd);
+          $('pcvHist').value = h; w.onPcvHistChange(); $('pcvStartAge').value = sa || '';
+          $('pcvDose1Date').value = ''; $('pcvDose2Date').value = '';
+          const tag = 'วัน=' + days + ' ประวัติ=' + h + ' อายุตอนเริ่ม=' + sa + ' มา=' + fmt(vd);
+          count('runs');
+          try { w.calculateAge(); } catch (e) { fail('exception', tag + ' ' + e.message); continue; }
+          const cur = T('modalCurrentVaccineContent'), nx = T('modalNextApptContent'), box = pcvHidden() ? '' : T('modalPcvContent');
+          const all = cur + ' || ' + nx + ' || ' + box;
+          if (BADRE.test(all)) fail('badtext', tag + ' พบ "' + all.match(BADRE)[0] + '"');
+          // การ์ด PCV ต้องไม่มีปุ่ม Copy (กัน Copy ผิดวัน)
+          if (!pcvHidden() && $('modalPcvContent').querySelector('button')) fail('copybtn', tag + ' การ์ด PCV มีปุ่ม');
+          // แถว PCV ในการ์ดวันนี้ต้องไม่ซ้ำ
+          const todayRows = [...$('modalCurrentVaccineContent').querySelectorAll('.border-green-100, .border-sky-400')].filter(e => e.textContent.trim().startsWith('PCV'));
+          if (todayRows.length > 1) fail('duplicate', tag + ' แถว PCV ซ้ำในการ์ดวันนี้ ' + todayRows.length);
+          if (h === 'done' && todayRows.length) fail('done', tag + ' เลือกครบแล้วแต่ยังมีแถว PCV ในการ์ดวันนี้');
+          const de = d.documentElement;
+          if (de.scrollWidth > de.clientWidth + 1) fail('overflow', tag + ' กว้างเกินจอ');
+
+          const hist = w.readPcvHistory();
+          const r = w.PCV.plan({ birth: b, visit: vd, history: hist.history || {}, env: w.pcvEnv() });
+          if (!r.ok || r.complete) continue;
+          count('checked');
+          for (const dd of r.doses) {
+            if (dd.state === 'given') continue;
+            const ok = (dd.state === 'today' || dd.state === 'due') ? new RegExp('PCV' + dd.n).test(cur)
+                                                                    : (nx.includes(fmt(dd.date)) || box.includes(fmt(dd.date)));
+            if (!ok) fail('missing', tag + ' เข็ม ' + dd.n + ' (' + dd.state + ') ไม่ปรากฏในหน้า');
+          }
+          const routine = w.eval('lastNextApptDate');
+          const promoted = !$('nextVacChips');   // การ์ดนัดถัดไปถูกแทนที่ด้วยเข็มเดี่ยว
+          const soloSame = r.doses.find(x => x.state === 'planned' && x.session && same(x.date, routine));
+          if (soloSame) {
+            count('sameDay');
+            if (!promoted && !($('nextVacChips').innerText.includes('PCV' + soloSame.n) && !box.includes(fmt(soloSame.date)))) fail('sameday', tag + ' เข็มเดี่ยวตกวันเดียวกับนัดปกติแต่ไม่รวมเป็นนัดเดียว');
+          }
+          const solos = r.doses.filter(x => x.state === 'planned' && x.session && x.date && !same(x.date, routine)).map(x => x.date.getTime());
+          const m = nx.match(/(\d\d)\/(\d\d)\/(\d{4})/);
+          if (m && solos.length) {
+            const first = new Date(+m[3] - 543, +m[2] - 1, +m[1]).getTime();
+            if (Math.min(...solos) < first) fail('nexttoolate', tag + ' วันนัดครั้งถัดไปช้ากว่า PCV เข็มเดี่ยวที่ต้องมาก่อน');
+          }
+        }
+      }
+    }
+    stats.jsErrors = jsErrors.length; if (jsErrors.length) fail('jserror', jsErrors.slice(0, 3).join(' | '));
+
+    // ---------- 2) แท็บค้นหาวันฉีด (ผู้ปกครอง) ----------
+    const opts = [...$('delayedAge').options].map(o => o.value).filter(Boolean);
+    if (!opts.includes('PCV')) fail('delayed', 'ไม่มีตัวเลือก PCV เข็มเดี่ยว');
+    for (const o of opts) for (const bd of ['', '04/02/2569']) {
+      $('birthDate').value = bd; $('visitDate').value = '04/11/2569'; $('delayedAge').value = o; count('delayedRuns');
+      try { w.calculateDelayedVaccine(); } catch (e) { fail('delayed', o + ' exception ' + e.message); continue; }
+      if (BADRE.test(T('modalCurrentVaccineContent') + T('modalNextApptContent'))) fail('delayed', o + ' ข้อความผิดปกติ');
+      if (!pcvHidden()) fail('delayed', o + ' การ์ด PCV โผล่ในแท็บค้นหา');
+    }
+
+    // ---------- 3) อายุสด + ตัวเลือกอายุตอนเริ่ม ----------
+    type('birthDate', '01022569'); type('visitDate', '03112569');
+    if ($('liveAge').classList.contains('hidden')) fail('liveage', 'กล่องอายุไม่ขึ้น');
+    if (!/39 \S+ 2 \S+/.test(T('liveAge'))) fail('liveage', 'อายุสัปดาห์+วันไม่ใช่ 39/2: ' + T('liveAge').replace(/\s+/g, ' '));
+    const dis = [...$('pcvStartAge').options].filter(o => o.disabled).length;
+    if (dis !== 14) fail('liveage', 'ตัวเลือกที่ถูกปิดควรเป็น 14 (เด็ก 9 เดือน: 10–23) แต่ได้ ' + dis);
+    type('birthDate', '01122569'); if (!/\S/.test(T('liveAge'))) fail('liveage', 'ไม่มีคำเตือนเมื่อวันเกิดเกินวันมารับบริการ');
+
+    // ---------- 4) กด Enter = คำนวณ ----------
+    $('birthDate').value = '01/02/2569'; $('visitDate').value = '03/11/2569'; $('pcvHist').value = 'none'; w.onPcvHistChange();
+    w.closeResultModal();
+    $('birthDate').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    if ($('resultModal').classList.contains('hidden')) fail('enter', 'กด Enter ในช่องวันเกิดแล้วผลไม่ขึ้น');
+    w.closeResultModal();
+
+    // ---------- 5) รีเซ็ต ----------
+    $('pcvHist').value = '1'; w.onPcvHistChange(); $('pcvStartAge').value = '5'; $('pcvDose1Date').value = '01/01/2569';
+    w.resetAll();
+    if ($('pcvHist').value || $('pcvStartAge').value || $('pcvDose1Date').value || !$('pcvHistDetail').classList.contains('hidden')) fail('reset', 'รีเซ็ตแล้วช่องประวัติ PCV ไม่ว่าง');
+
+    // ---------- 6) แท็บแผนการฉีดวัคซีน + ฟังก์ชันอายุ ----------
+    const plan = $('fullScheduleContainer');
+    if (!plan.innerText.includes('PCV')) fail('plan', 'ไม่มีการ์ด PCV ในแท็บแผนการฉีด');
+    if (BADRE.test(plan.innerText)) fail('plan', 'ข้อความผิดปกติ');
+    const wd = (b, c) => w.weeksDaysText(new Date(b), new Date(c));
+    [['2026-02-01', '2026-11-03', '39 สัปดาห์ 2 วัน'], ['2026-11-03', '2026-11-03', '0 สัปดาห์ 0 วัน'], ['2025-11-03', '2026-11-03', '52 สัปดาห์ 1 วัน']]
+      .forEach(([b, c, want]) => { const got = wd(b, c); if (got !== want) fail('weeksdays', b + '→' + c + ' ได้ "' + got + '" ต้องเป็น "' + want + '"'); });
+  } catch (e) { fail('harness', e.stack || String(e)); }
+  document.getElementById('result').textContent = JSON.stringify({ done: true, stats, failures });
+  document.title = 'done';
+};
+</script>

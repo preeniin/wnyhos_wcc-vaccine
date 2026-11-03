@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 48 · 3 พ.ย. 2569 15:19 (PCV: การ์ดนัดถัดไปแสดงนัดเดียว เอา "นัดต่อจากนั้น" ออก)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 49 · 3 พ.ย. 2569 15:38 (อายุ สัปดาห์+วัน, กด Enter คำนวณ, เอาปุ่ม Copy ออกจากการ์ด PCV)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -1112,7 +1112,7 @@
             document.getElementById('delayedAge').value = '';
             document.getElementById('pcvHist').value = ''; document.getElementById('pcvStartAge').value = '';
             ['pcvDose1Date', 'pcvDose2Date'].forEach(id => { const el = document.getElementById(id); el.value = ''; updateDateFieldState(id, id + 'Status', id + 'Hint'); });
-            onPcvHistChange(); updateLiveAge();
+            onPcvHistChange(); updateLiveAge(); focusBirthDate();
             closeResultModal();
             showTab('normal');
         }
@@ -1261,7 +1261,7 @@
             const age = calculateDetailedAge(bDate, vDate);
             
             document.getElementById('modalAgeYMD').textContent = `${age.years} ปี ${age.months} เดือน ${age.days} วัน`;
-            document.getElementById('modalAgeWeeks').textContent = `${age.weeks} สัปดาห์`;
+            document.getElementById('modalAgeWeeks').textContent = weeksDaysText(bDate, vDate);
             document.getElementById('modalAgeSection').classList.remove('hidden');
 
             const code = determineVaccineAge(age);
@@ -1364,7 +1364,7 @@
                 </div>
                 <div class="shrink-0 text-right leading-tight border-l-2 border-blue-200 pl-4">
                     <div class="text-2xl font-black text-blue-900">${m} <span class="text-base">เดือน</span></div>
-                    <div class="text-base font-black text-blue-600">${a.weeks} สัปดาห์</div>
+                    <div class="text-base font-black text-blue-600">${weeksDaysText(b, v)}</div>
                 </div>
             </div>`;
             box.classList.remove('hidden');
@@ -1379,6 +1379,17 @@
                 el.addEventListener('blur', updateLiveAge);
                 el.addEventListener('paste', () => setTimeout(updateLiveAge, 0));
             });
+            // กด Enter ในช่องวันที่ = กดปุ่ม "คำนวณวันนัด" (ไม่ต้องใช้เมาส์)
+            ['birthDate', 'visitDate', 'pcvDose1Date', 'pcvDose2Date'].forEach(id => {
+                document.getElementById(id).addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); calculateAge(); }
+                });
+            });
+            focusBirthDate();
+        }
+        /** จอใหญ่: วางเคอร์เซอร์ที่ช่องวันเกิดเลย (มือถือไม่ทำ เพราะจะเด้งคีย์บอร์ดทันที) */
+        function focusBirthDate() {
+            if (window.matchMedia && window.matchMedia('(min-width: 768px)').matches) setTimeout(() => document.getElementById('birthDate').focus(), 0);
         }
         function onPcvHistChange() {
             const v = document.getElementById('pcvHist').value;
@@ -1575,7 +1586,8 @@
                         const a = calculateDetailedAge(bDate, d.date);
                         dateHtml += `<span class="text-[11px] font-bold text-gray-500 ml-2">อายุ ${a.years ? a.years + ' ปี ' : ''}${a.months} เดือน ${a.days} วัน</span>`;
                         const hd = formatHosxpDate(d.date);
-                        copyHtml = `<div class="mt-2 flex items-center gap-2"><span class="font-mono font-bold text-sky-800 text-sm tracking-wider">${hd}</span><button onclick="copyDateText(event, '${hd}')" class="bg-sky-500 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold shadow">📋 Copy (HosXP)</button></div>`;
+                        // การ์ด PCV ไม่มีปุ่ม Copy (กัน Copy ผิดวัน) — ปุ่ม Copy มีเฉพาะการ์ดวันนัดครั้งถัดไป; แสดงวันที่รูปแบบ HosXP เป็นข้อความเฉย ๆ
+                        copyHtml = `<div class="mt-1 font-mono font-bold text-sky-800 text-sm tracking-wider">${hd}</div>`;
                         const y = d.date.getFullYear();
                         if (!seenYears.has(y)) { seenYears.add(y); yearHtml = buildApptYearNotice(d.date); }
                     }
@@ -1680,6 +1692,11 @@
             </div>`;
         }
 
+        /** อายุเป็น "N สัปดาห์ M วัน" (นับวันทั้งหมดแล้วหาร 7) เช่น 276 วัน = 39 สัปดาห์ 3 วัน */
+        function weeksDaysText(b, c) {
+            const t = Math.max(0, Math.round((c - b) / 86400000));
+            return `${Math.floor(t / 7)} สัปดาห์ ${t % 7} วัน`;
+        }
         function calculateDetailedAge(b, c) {
             let y = c.getFullYear() - b.getFullYear(), m = c.getMonth() - b.getMonth(), d = c.getDate() - b.getDate();
             if (d < 0) { m--; d += new Date(b.getFullYear(), b.getMonth() + 1, 0).getDate(); }
