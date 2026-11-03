@@ -1471,6 +1471,8 @@
             box.innerHTML = ''; box.classList.add('hidden');
             if (typeof PCV === 'undefined' || totalMonths < 2) return;   // pcv-rules.js โหลดไม่ได้ / ยังไม่ถึงเกณฑ์เริ่ม PCV: ไม่แสดงการ์ด
             const hist = readPcvHistory();
+            // ชีตใส่ "PCV" ทั่วไปไว้ในรอบ 2 ด./4 ด./1 ปี ถ้ามีประวัติแล้ว ให้ใช้แถวของแผนรายคนแทน (กันซ้ำ และกันบอกให้ฉีดทั้งที่ไม่ถึงกำหนด/ครบแล้ว)
+            if (hist.kind === 'plan') document.querySelectorAll('#modalCurrentVaccineContent .border-green-100').forEach(el => { if (el.textContent.trim().startsWith('PCV')) el.remove(); });
             let body, cardTitle = 'แผน PCV (นิวโมค็อกคัส)';
             if (hist.kind === 'unselected' && totalMonths < 24) {
                 body = pcvMsgHtml('amber', 'กรุณาระบุประวัติ PCV ก่อน', 'ระบบไม่เดาว่าเด็กเคยฉีดมาแล้วหรือยัง เลือกที่ช่อง "ประวัติ PCV" แล้วกดคำนวณใหม่');
