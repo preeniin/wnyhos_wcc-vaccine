@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ตั้งค่า WCC Vaccine</title>
+<style>
+  :root { --bg:#f4f7f6; --card:#fff; --ink:#1b2b27; --muted:#5c6f69; --line:#d5dfdb; --brand:#0f766e; --brand-d:#0b5c56; --danger:#b42318; --warn:#fff4d6; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#10191a; --card:#18262a; --ink:#e6f0ed; --muted:#9db3ad; --line:#2c4147; --brand:#2bb3a6; --brand-d:#4fd1c5; --danger:#ff8a80; --warn:#3a3217; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, "Sarabun", "Noto Sans Thai", sans-serif; }
+  header { background:var(--brand); color:#fff; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+  header h1 { margin:0; font-size:18px; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tab { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; cursor:pointer; font:inherit; }
+  .tab[aria-selected="true"] { background:var(--brand); color:#fff; border-color:var(--brand); }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:6px 12px; }
+  button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+  button.primary:hover { background:var(--brand-d); }
+  button.danger { color:var(--danger); border-color:var(--danger); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  input, select, textarea { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 8px; width:100%; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:2px; }
+  .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .vrow { display:grid; gap:6px; grid-template-columns: 2fr 2fr 1fr auto; align-items:end; margin-top:6px; }
+  .weeks { display:flex; gap:6px; flex-wrap:wrap; }
+  .weeks label { display:flex; gap:4px; align-items:center; color:var(--ink); font-size:14px; border:1px solid var(--line); border-radius:8px; padding:4px 8px; margin:0; }
+  .weeks input { width:auto; }
+  .msg { padding:10px 12px; border-radius:8px; margin-bottom:12px; }
+  .msg.err { background:#fde7e5; color:#7a1710; border:1px solid #f4b4ad; }
+  .msg.ok { background:#dff5ee; color:#0b4a3d; border:1px solid #9fdcc9; }
+  .note { background:var(--warn); border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:12px; }
+  .stickybar { position:sticky; bottom:0; background:var(--bg); padding:10px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); }
+  table { width:100%; border-collapse:collapse; }
+  td, th { padding:4px; text-align:left; vertical-align:middle; }
+  .hidden { display:none !important; }
+  .muted { color:var(--muted); font-size:13px; }
+  @media (max-width:640px) { .vrow { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚙️ ตั้งค่า WCC Vaccine</h1>
+  <div class="row"><a href="/" style="color:#fff">← กลับหน้าคำนวณนัด</a><button id="logoutBtn" class="hidden">ออกจากระบบ</button></div>
+</header>
+<main>
+  <div id="flash"></div>
+
+  <!-- เข้าสู่ระบบ -->
+  <section id="loginView" class="card hidden" style="max-width:420px;margin:40px auto">
+    <h2 style="margin-top:0">เข้าสู่ระบบแอดมิน</h2>
+    <form id="loginForm">
+      <label for="pw">รหัสผ่าน</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <div style="margin-top:12px"><button class="primary" type="submit">เข้าสู่ระบบ</button></div>
+    </form>
+    <p id="noPw" class="note hidden" style="margin-top:12px">ยังไม่ได้ตั้งรหัสผ่านบน server — ให้ผู้ดูแลรัน <b>node set-password.js</b> บนเครื่อง server ก่อน</p>
+  </section>
+
+  <!-- ส่วนตั้งค่า -->
+  <section id="appView" class="hidden">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="vac" aria-selected="true">💉 ตารางวัคซีน</button>
+      <button class="tab" role="tab" data-tab="hol" aria-selected="false">📅 วันหยุด / วันยกเลิก</button>
+      <button class="tab" role="tab" data-tab="io" aria-selected="false">📦 นำเข้า / ส่งออก CSV</button>
+    </div>
+
+    <div id="tab-vac">
+      <div class="note">ลำดับแถวสำคัญ: หน้าเว็บแสดงตามลำดับนี้ และ "อายุถัดไป" ใช้คำนวณวันนัดครั้งต่อไป · แก้เสร็จต้องกด <b>บันทึก</b> หน้าเว็บของเจ้าหน้าที่จะได้ข้อมูลใหม่เมื่อรีเฟรช</div>
+      <div id="vacList"></div>
+      <div class="stickybar">
+        <button id="addVac">+ เพิ่มช่วงอายุ</button>
+        <button id="saveVac" class="primary">💾 บันทึกตารางวัคซีน</button>
+        <span id="vacState" class="muted"></span>
+      </div>
+    </div>
+
+    <div id="tab-hol" class="hidden">
+      <div class="note">ใส่วันที่เป็น <b>ค.ศ.</b> · ชื่อ <b>"ยกเลิก"</b> = ยกเลิกวันหยุดนั้น (เช่น วันหยุดที่ระบบคำนวณเองแต่คลินิกเปิดจริง) · ชื่ออื่น = เพิ่มวันหยุด/ชดเชย</div>
+      <div class="card"><table id="holTable"><thead><tr><th style="width:190px">วันที่ (ค.ศ.)</th><th>ชื่อ</th><th style="width:80px"></th></tr></thead><tbody></tbody></table></div>
+      <div class="stickybar">
+        <button id="addHol">+ เพิ่มวัน</button>
+        <button id="saveHol" class="primary">💾 บันทึกวันหยุด</button>
+        <span id="holState" class="muted"></span>
+      </div>
+    </div>
+
+    <div id="tab-io" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0">ส่งออก (สำรองข้อมูล)</h3>
+        <div class="row"><a href="/data/vaccines.csv" download="vaccines.csv"><button>⬇️ vaccines.csv</button></a><a href="/data/holidays.csv" download="holidays.csv"><button>⬇️ holidays.csv</button></a></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">นำเข้า CSV (แทนที่ข้อมูลส่วนนั้นทั้งหมด)</h3>
+        <p class="muted">รูปแบบเดียวกับไฟล์ที่ส่งออก/จาก Google Sheets เดิม · ระบบสำรองข้อมูลก่อนบันทึกให้อัตโนมัติ (เก็บ 50 ครั้งล่าสุดบน server)</p>
+        <div class="grid">
+          <div><label>vaccines.csv</label><input type="file" id="fileVac" accept=".csv,text/csv"></div>
+          <div><label>holidays.csv</label><input type="file" id="fileHol" accept=".csv,text/csv"></div>
+        </div>
+        <div style="margin-top:12px"><button id="importBtn" class="primary">นำเข้า</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const state = { vaccines: [], holidays: [] };
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, '');
+    else if (v !== false && v != null) el.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => { if (c != null) el.append(c.nodeType ? c : document.createTextNode(String(c))); });
+  return el;
+}
+async function api(method, url, body) {
+  const r = await fetch(url, {
+    method, credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-WCC': '1' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let data = {}; try { data = await r.json(); } catch (e) {}
+  if (r.status === 401 && url !== '/api/login') { showLogin(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); }
+  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+function flash(msg, ok) {
+  const box = $('#flash'); box.replaceChildren(h('div', { class: 'msg ' + (ok ? 'ok' : 'err'), role: 'alert' }, msg));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (ok) setTimeout(() => box.replaceChildren(), 5000);
+}
+
+// ---------- login ----------
+function showLogin(passwordSet) {
+  $('#appView').classList.add('hidden'); $('#logoutBtn').classList.add('hidden');
+  $('#loginView').classList.remove('hidden');
+  if (passwordSet === false) $('#noPw').classList.remove('hidden');
+}
+async function showApp() {
+  const s = await api('GET', '/api/admin/store');
+  state.vaccines = s.vaccines; state.holidays = s.holidays;
+  $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden'); $('#logoutBtn').classList.remove('hidden');
+  renderVac(); renderHol();
+}
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { await api('POST', '/api/login', { password: $('#pw').value }); $('#pw').value = ''; $('#flash').replaceChildren(); await showApp(); }
+  catch (err) { flash(err.message); }
+});
+$('#logoutBtn').addEventListener('click', async () => { try { await api('POST', '/api/logout', {}); } catch (e) {} showLogin(true); });
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  ['vac', 'hol', 'io'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== t.dataset.tab));
+}));
+
+// ---------- vaccines ----------
+function field(label, value, onInput, attrs) {
+  const inp = h('input', Object.assign({ value: value || '' }, attrs || {}));
+  inp.addEventListener('input', () => onInput(inp.value));
+  return h('div', null, h('label', null, label), inp);
+}
+function renderVac() {
+  const list = $('#vacList'); list.replaceChildren();
+  const codes = state.vaccines.map(v => v.code).filter(Boolean);
+  state.vaccines.forEach((r, i) => {
+    const move = (d) => () => { const j = i + d; if (j < 0 || j >= state.vaccines.length) return; [state.vaccines[i], state.vaccines[j]] = [state.vaccines[j], state.vaccines[i]]; renderVac(); };
+    const remove = () => { if (confirm(`ลบช่วงอายุ "${r.name || r.code}" ?\n(ยังไม่บันทึกจนกว่าจะกดบันทึก)`)) { state.vaccines.splice(i, 1); renderVac(); } };
+
+    const nextSel = h('select', null, h('option', { value: '' }, '— ไม่มี (เข็มสุดท้าย) —'),
+      codes.filter(c => c !== r.code).map(c => h('option', { value: c, selected: c === r.nextAge }, c)));
+    nextSel.addEventListener('change', () => { r.nextAge = nextSel.value; });
+
+    const weeks = h('div', { class: 'weeks' }, [1, 2, 3, 4, 5].map(w => {
+      const cb = h('input', { type: 'checkbox', checked: r.weeks.includes(w) });
+      cb.addEventListener('change', () => { r.weeks = cb.checked ? [...new Set([...r.weeks, w])].sort() : r.weeks.filter(x => x !== w); });
+      return h('label', null, cb, 'สัปดาห์ ' + w);
+    }));
+
+    const vacRows = h('div', null, r.vaccines.map((v, j) => {
+      const type = h('select', null, ['injection', 'oral'].map(t => h('option', { value: t, selected: v.type === t }, t === 'injection' ? '💉 ฉีด' : '💊 กิน')));
+      type.addEventListener('change', () => { v.type = type.value; });
+      return h('div', { class: 'vrow' },
+        field('ชื่อวัคซีน', v.name, x => { v.name = x; }, { maxlength: 80 }),
+        field('ชื่อไทย', v.thai, x => { v.thai = x; }, { maxlength: 120 }),
+        h('div', null, h('label', null, 'ชนิด'), type),
+        h('button', { class: 'danger', title: 'ลบวัคซีนนี้', onclick: () => { r.vaccines.splice(j, 1); renderVac(); } }, '✕'));
+    }));
+
+    list.append(h('div', { class: 'card' },
+      h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' },
+        h('b', null, `#${i + 1} ${r.name || '(ยังไม่ตั้งชื่อ)'}`),
+        h('div', { class: 'row' }, h('button', { onclick: move(-1), disabled: i === 0, title: 'เลื่อนขึ้น' }, '↑'), h('button', { onclick: move(1), disabled: i === state.vaccines.length - 1, title: 'เลื่อนลง' }, '↓'), h('button', { class: 'danger', onclick: remove }, 'ลบแถว'))),
+      h('div', { class: 'grid' },
+        field('รหัสอายุ (เช่น 2m, 1y)', r.code, x => { r.code = x.trim(); }, { maxlength: 12 }),
+        field('ชื่ออายุที่แสดง', r.name, x => { r.name = x; }, { maxlength: 40 }),
+        field('เวลาให้บริการ', r.time, x => { r.time = x; }, { maxlength: 40, placeholder: '8:00-11:30น.' }),
+        h('div', null, h('label', null, 'อายุถัดไป (ใช้คำนวณนัดครั้งต่อไป)'), nextSel)),
+      h('div', { style: 'margin-top:10px' }, h('label', null, 'วันพุธสัปดาห์ที่เปิดให้บริการ'), weeks),
+      h('div', { style: 'margin-top:10px' }, field('ข้อความรอบ (เว้นว่าง = สร้างให้อัตโนมัติ)', r.schedule, x => { r.schedule = x; }, { maxlength: 120 })),
+      h('div', { style: 'margin-top:10px' }, h('label', null, 'วัคซีนในช่วงอายุนี้'), vacRows,
+        h('div', { style: 'margin-top:6px' }, h('button', { onclick: () => { r.vaccines.push({ name: '', thai: '', type: 'injection' }); renderVac(); } }, '+ เพิ่มวัคซีน'))),
+      h('div', { style: 'margin-top:10px' }, field('หมายเหตุ (ขึ้นกรอบแดงในหน้าเว็บ)', r.special, x => { r.special = x; }, { maxlength: 300 }))
+    ));
+  });
+}
+$('#addVac').addEventListener('click', () => {
+  state.vaccines.push({ code: '', name: '', vaccines: [{ name: '', thai: '', type: 'injection' }], schedule: '', weeks: [1, 3], time: '', nextAge: '', special: '' });
+  renderVac(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+});
+$('#saveVac').addEventListener('click', async () => {
+  const b = $('#saveVac'); b.disabled = true;
+  try { const r = await api('PUT', '/api/admin/vaccines', { vaccines: state.vaccines }); state.vaccines = r.vaccines; renderVac(); $('#vacState').textContent = 'บันทึกแล้ว ' + new Date().toLocaleTimeString('th-TH'); flash('บันทึกตารางวัคซีนเรียบร้อย', true); }
+  catch (e) { flash(e.message); } finally { b.disabled = false; }
+});
+
+// ---------- holidays ----------
+function renderHol() {
+  const tb = $('#holTable tbody'); tb.replaceChildren();
+  state.holidays.forEach((r, i) => {
+    const date = h('input', { type: 'date', value: r.date }); date.addEventListener('input', () => { r.date = date.value; });
+    const name = h('input', { value: r.name, maxlength: 100 }); name.addEventListener('input', () => { r.name = name.value; });
+    tb.append(h('tr', null, h('td', null, date), h('td', null, name), h('td', null, h('button', { class: 'danger', onclick: () => { state.holidays.splice(i, 1); renderHol(); } }, 'ลบ'))));
+  });
+  if (!state.holidays.length) tb.append(h('tr', null, h('td', { colspan: 3, class: 'muted' }, 'ยังไม่มีรายการ')));
+}
+$('#addHol').addEventListener('click', () => { state.holidays.push({ date: '', name: '' }); renderHol(); });
+$('#saveHol').addEventListener('click', async () => {
+  const b = $('#saveHol'); b.disabled = true;
+  try {
+    state.holidays.sort((a, c) => a.date.localeCompare(c.date));
+    const r = await api('PUT', '/api/admin/holidays', { holidays: state.holidays }); state.holidays = r.holidays; renderHol();
+    $('#holState').textContent = 'บันทึกแล้ว ' + new Date().toLocaleTimeString('th-TH'); flash('บันทึกวันหยุดเรียบร้อย', true);
+  } catch (e) { flash(e.message); } finally { b.disabled = false; }
+});
+
+// ---------- import ----------
+const readFile = f => new Promise((res, rej) => { if (!f) return res(''); const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsText(f, 'utf-8'); });
+$('#importBtn').addEventListener('click', async () => {
+  const b = $('#importBtn'); b.disabled = true;
+  try {
+    const body = { vaccinesCsv: await readFile($('#fileVac').files[0]), holidaysCsv: await readFile($('#fileHol').files[0]) };
+    if (!body.vaccinesCsv && !body.holidaysCsv) throw new Error('กรุณาเลือกไฟล์ CSV อย่างน้อย 1 ไฟล์');
+    if (!confirm('นำเข้าจะแทนที่ข้อมูลส่วนนั้นทั้งหมด (มีสำเนาสำรองบน server) ดำเนินการต่อ?')) return;
+    const r = await api('POST', '/api/admin/import', body);
+    state.vaccines = r.vaccines; state.holidays = r.holidays; renderVac(); renderHol();
+    $('#fileVac').value = ''; $('#fileHol').value = '';
+    flash('นำเข้าเรียบร้อย: ' + r.imported.join(', '), true);
+  } catch (e) { flash(e.message); } finally { b.disabled = false; }
+});
+
+// ---------- boot ----------
+(async () => {
+  try {
+    const me = await api('GET', '/api/me');
+    if (me.admin) await showApp(); else showLogin(me.passwordSet);
+  } catch (e) { showLogin(true); }
+})();
+</script>
+</body>
+</html>

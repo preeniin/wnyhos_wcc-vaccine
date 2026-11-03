@@ -1,0 +1,3 @@
+# runtime data of the local server (passwords hash, backups, audit log)
+server/data/
+server/**/*.tmp-*
