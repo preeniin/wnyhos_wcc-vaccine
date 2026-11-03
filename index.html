@@ -968,6 +968,8 @@
             const select = document.getElementById('delayedAge');
             select.innerHTML = '<option value="">-- เลือกอายุที่ต้องการนัด --</option>';
             Object.keys(vaccineSchedules).forEach(code => select.innerHTML += `<option value="${code}">${vaccineSchedules[code].name}</option>`);
+            // PCV เข็มเดี่ยวไม่ผูกกับรอบอายุใดในชีต จึงเพิ่มเป็นตัวเลือกพิเศษท้ายรายการ
+            select.innerHTML += `<option value="PCV">💉 PCV (นิวโมค็อกคัส) เข็มเดี่ยว · ${pcvSoloText()} ช่วงเช้า</option>`;
         }
 
         function renderVaccineScheduleTab() {
@@ -1302,7 +1304,13 @@
 
             document.getElementById('modalAgeSection').classList.add('hidden');
             const pcvBox = document.getElementById('modalPcvContent'); pcvBox.innerHTML = ''; pcvBox.classList.add('hidden');
-            buildCurrentVaccineModalCard(code, `💉 วัคซีนสำหรับ ${vaccineSchedules[code].name}`);
+            if (code === 'PCV') {
+                buildPcvInfoModalCard();
+                buildSpecificAppointmentModalCard('PCV', vDate, bDate, { name: 'PCV เข็มเดี่ยว', weeks: PCV_WEEKS });
+                showResultModal("ผลการค้นหาวันที่เปิดให้บริการ");
+                return;
+            }
+            buildCurrentVaccineModalCard(code, `💉 วัคซีนสำหรับ ${vaccineSchedules[code].name}`, pcvRoundNote(code, true));
             buildSpecificAppointmentModalCard(code, vDate, bDate);
             
             showResultModal("ผลการค้นหาวันที่เปิดให้บริการ");
@@ -1353,10 +1361,74 @@
             const cls = { amber: 'bg-amber-50 border-amber-400 text-amber-900', blue: 'bg-blue-50 border-blue-300 text-blue-900', green: 'bg-green-50 border-green-400 text-green-900' }[tone];
             return `<div class="${cls} border-2 rounded-xl p-4 font-black text-sm leading-snug">${title}${sub ? `<div class="font-bold text-xs mt-1 opacity-80">${sub}</div>` : ''}</div>`;
         }
-        function pcvDosesHtml(r, bDate) {
+        // วันนัดครั้งถัดไปของการ์ดม่วง (ตั้งค่าใน buildNextAppointmentModalCard) ใช้เช็คว่าเข็ม PCV ตรงวันเดียวกันไหม
+        let lastNextApptDate = null;
+
+        function pcvTodayRowHtml(d) {
+            const how = d.state === 'due' ? 'ถึงกำหนดแล้ว ฉีดได้วันนี้'
+                : d.label ? 'ฉีดพร้อมวัคซีนวันนี้ · ' + d.label
+                : 'ทันที (ไม่ผูกกับรอบวัคซีนอื่น)';
+            const notes = (d.notes || []).filter(t => !t.startsWith('ถึงกำหนดแล้ว'))
+                .map(t => `<div class="mt-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">${t}</div>`).join('');
+            const warns = (d.warnings || []).map(t => `<div class="mt-1.5 bg-red-50 border border-red-300 text-red-800 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">⚠️ ${t}</div>`).join('');
+            return `<div class="bg-sky-50 border-2 border-dashed border-sky-400 rounded p-2 shadow-sm"><div class="flex items-center"><span class="text-xl mr-3">💉</span><div class="leading-tight"><div class="font-black text-sky-900">PCV${d.n}</div><div class="text-[11px] text-sky-800 font-bold">นิวโมค็อกคัส · ${how}</div></div></div>${notes}${warns}</div>`;
+        }
+        /** การ์ดข้อมูล PCV ในแท็บค้นหาวันฉีด (สำหรับผู้ปกครอง) เมื่อเลือกตัวเลือก "PCV เข็มเดี่ยว" */
+        function buildPcvInfoModalCard() {
+            const html = `<div class="bg-sky-50 border-2 border-sky-500 rounded-2xl overflow-hidden shadow-lg h-full flex flex-col">
+                <div class="bg-gradient-to-r from-sky-700 to-cyan-500 text-white px-3 sm:px-4 py-3 font-black text-base sm:text-lg flex flex-wrap justify-between items-center gap-2 shadow-sm">
+                    <span>💉 PCV (นิวโมค็อกคัส)</span><span class="bg-white/20 px-2 py-0.5 rounded text-xs sm:text-sm border border-white/30">เข็มเดี่ยว</span>
+                </div>
+                <div class="p-4 flex-1 flex flex-col justify-center space-y-2">
+                    <div class="flex items-center bg-white rounded p-2 shadow-sm border border-sky-100"><span class="text-xl mr-3">💉</span><div class="leading-tight"><div class="font-black text-sky-900">PCV</div><div class="text-[11px] text-sky-700 font-bold">วัคซีนนิวโมค็อกคัส</div></div></div>
+                    <div class="mt-2 flex items-center gap-2 bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold px-3 py-2 rounded-lg shadow-sm"><span class="text-teal-600 font-black shrink-0">เวลาให้บริการ:</span><span class="text-teal-900">${pcvSoloText()} ช่วงเช้า</span></div>
+                    <div class="text-[11px] text-gray-600 font-bold leading-snug">รอบปกติรับพร้อมรอบ 2 เดือน (เข็ม 1), 4 เดือน (เข็ม 2) และ 1 ปี (เข็ม 3) เด็กที่เริ่มช้าหรือต้องแยกวัน มารับเข็มเดี่ยวได้ตามวันที่แสดง ส่วนแผนของเด็กแต่ละคน ดูที่แท็บ "นัดตามอายุ" โดยกรอกวันเกิดและประวัติ PCV</div>
+                </div>
+            </div>`;
+            const container = document.getElementById('modalCurrentVaccineContent');
+            container.innerHTML = html; container.classList.remove('hidden');
+        }
+        function pcvWithNextHtml(d) {
+            const notes = (d.notes || []).map(t => `<div class="mt-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">${t}</div>`).join('');
+            const warns = (d.warnings || []).map(t => `<div class="mt-1.5 bg-red-50 border border-red-300 text-red-800 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">⚠️ ${t}</div>`).join('');
+            return `<div class="mb-3 border-2 border-dashed border-sky-400 bg-sky-50 rounded-xl px-3 py-2 text-left"><div class="text-xs font-black text-sky-700 leading-snug mb-1">💉 พร้อมกัน: PCV${d.n}</div><div class="text-[11px] font-bold text-gray-700 leading-snug">ไปพร้อมวันนัดนี้ ไม่ต้องนัดเพิ่ม <span class="font-normal text-gray-500">(${d.label})</span></div>${notes}${warns}</div>`;
+        }
+        /**
+         * รวม PCV เข้ากับการ์ดที่เจ้าหน้าที่ดูอยู่แล้ว:
+         *  - เข็มที่ฉีดวันนี้ → ต่อท้ายรายการในการ์ดเขียว "ต้องฉีดวันนี้"
+         *  - เข็มที่ไปพร้อมรอบและตรงวันนัดครั้งถัดไป → กล่อง "พร้อมกัน" ในการ์ดม่วง
+         *  - ที่เหลือ (เข็มเดี่ยว / เข็มรอบหลังจากนี้) → การ์ดฟ้าด้านล่าง; ถ้าไม่เหลือ คืน null (ซ่อนการ์ด)
+         */
+        function pcvMergedBody(r, bDate) {
+            if (r.complete) return { title: 'แผน PCV (นิวโมค็อกคัส)', html: pcvDosesHtml(r, bDate) };
+            const sameDay = (a, b) => !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+            const placed = new Set();
+            const todays = r.doses.filter(d => d.state === 'today' || d.state === 'due');
+            const todayItems = document.querySelectorAll('#modalCurrentVaccineContent .border-green-100');
+            if (todays.length && todayItems.length) {
+                todayItems[todayItems.length - 1].insertAdjacentHTML('afterend', todays.map(pcvTodayRowHtml).join(''));
+                todays.forEach(d => placed.add(d));
+            }
+            const withs = r.doses.filter(d => d.state === 'planned' && d.withVisit && sameDay(d.date, lastNextApptDate));
+            const nextBox = document.querySelector('#modalNextApptContent .p-4 > div');
+            if (withs.length && nextBox) {
+                nextBox.insertAdjacentHTML('afterend', withs.map(pcvWithNextHtml).join(''));
+                withs.forEach(d => placed.add(d));
+            }
+            const rest = r.doses.filter(d => d.state !== 'given' && !placed.has(d));
+            if (!rest.length) return null;
+            const full = pcvDosesHtml(r, bDate);
+            return {
+                title: 'PCV: เข็มที่เหลือ',
+                html: pcvDosesHtml(r, bDate, d => rest.includes(d)) +
+                    `<details class="mt-3 border border-sky-200 rounded-xl bg-white"><summary class="cursor-pointer px-3 py-2 font-black text-xs text-sky-800">ดูแผน PCV ทั้งหมด</summary><div class="px-3 pb-3 pt-1">${full}</div></details>`
+            };
+        }
+
+        function pcvDosesHtml(r, bDate, include) {
             const seenYears = new Set();
             const ST = { given: ['ฉีดแล้ว', 'bg-green-100 text-green-800'], today: ['วันนี้', 'bg-sky-600 text-white'], due: ['ถึงกำหนด', 'bg-sky-600 text-white'], planned: ['นัด', 'bg-blue-100 text-blue-800'], unavailable: ['—', 'bg-gray-100 text-gray-600'] };
-            const rows = r.doses.map(d => {
+            const rows = r.doses.filter(d => !include || include(d)).map(d => {
                 const [stLab, stCls] = ST[d.state] || ST.planned;
                 let dateHtml = '', howHtml = '', copyHtml = '', yearHtml = '';
                 if (d.state === 'unavailable') {
@@ -1376,8 +1448,8 @@
                     }
                 }
                 if (d.state === 'planned' || d.state === 'today') {
-                    if (d.label) howHtml = d.label;
-                    else if (d.session) howHtml = `<span class="inline-block bg-sky-100 text-sky-800 border border-sky-300 rounded px-1.5 text-[11px] font-black mr-1">PCV เดี่ยว · ช่วง${d.session}</span> ${pcvSoloText()}`;
+                    if (d.label) howHtml = `<span class="inline-block bg-green-100 text-green-800 border border-green-300 rounded px-1.5 text-[11px] font-black mr-1">${d.state === 'today' ? 'ฉีดพร้อมวัคซีนวันนี้' : 'ไปพร้อมวันนัดปกติ ไม่ต้องนัดเพิ่ม'}</span> ${d.label}`;
+                    else if (d.session) howHtml = `<span class="inline-block bg-sky-100 text-sky-800 border border-sky-300 rounded px-1.5 text-[11px] font-black mr-1">ต้องนัดมาเฉพาะ PCV · ช่วง${d.session}</span> ${pcvSoloText()}`;
                     else if (d.state === 'today') howHtml = 'ทันที (วันที่มารับบริการ)';
                 }
                 const notes = (d.notes || []).map(t => `<div class="mt-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">${t}</div>`).join('');
@@ -1387,18 +1459,19 @@
                     <div class="min-w-0"><div>${dateHtml}</div>${howHtml ? `<div class="mt-0.5 text-xs font-bold text-gray-600">${howHtml}</div>` : ''}${copyHtml}${notes}${warns}${yearHtml}</div>
                 </div>`;
             }).join('');
+            const soloCount = r.doses.filter(d => d.state === 'planned' && d.session).length;
             const alt = Object.entries(r.cpgAlt || {}).map(([k, t]) => `เข็ม ${k.replace('d', '')}: ${t}`).join(' · ');
             return `${r.complete ? pcvMsgHtml('green', 'ครบตามเกณฑ์แล้ว ไม่ต้องนัด PCV เพิ่ม', '') + '<div class="h-3"></div>' : ''}
-                <div class="text-[11px] font-bold text-gray-500 mb-2">เริ่ม PCV ตอนอายุ ${r.startMonths} เดือน</div>
+                <div class="text-[11px] font-bold text-gray-500 mb-2">เริ่ม PCV ตอนอายุ ${r.startMonths} เดือน${soloCount ? ` · ต้องนัดมาเฉพาะ PCV ${soloCount} ครั้ง (ที่เหลือไปพร้อมวันนัดปกติ)` : ' · ไม่ต้องนัดมาเฉพาะ PCV (ไปพร้อมวันนัดปกติทั้งหมด)'}</div>
                 <div>${rows}</div>
-                ${alt ? `<div class="mt-3 text-[10px] font-bold text-gray-400 leading-snug">ตัวเลือกอื่นตาม CPG (ไม่ได้ใช้): ${alt}</div>` : ''}`;
+                ${alt && !include ? `<div class="mt-3 text-[10px] font-bold text-gray-400 leading-snug">ตัวเลือกอื่นตาม CPG (ไม่ได้ใช้): ${alt}</div>` : ''}`;
         }
         function renderPcvCard(bDate, vDate, totalMonths) {
             const box = document.getElementById('modalPcvContent');
             box.innerHTML = ''; box.classList.add('hidden');
             if (typeof PCV === 'undefined' || totalMonths < 2) return;   // pcv-rules.js โหลดไม่ได้ / ยังไม่ถึงเกณฑ์เริ่ม PCV: ไม่แสดงการ์ด
             const hist = readPcvHistory();
-            let body;
+            let body, cardTitle = 'แผน PCV (นิวโมค็อกคัส)';
             if (hist.kind === 'unselected' && totalMonths < 24) {
                 body = pcvMsgHtml('amber', 'กรุณาระบุประวัติ PCV ก่อน', 'ระบบไม่เดาว่าเด็กเคยฉีดมาแล้วหรือยัง เลือกที่ช่อง "ประวัติ PCV" แล้วกดคำนวณใหม่');
             } else if (hist.kind === 'unknown') {
@@ -1409,23 +1482,29 @@
                 const r = PCV.plan({ birth: bDate, visit: vDate, history: hist.kind === 'plan' ? hist.history : {}, env: pcvEnv() });
                 if (!r.ok) body = pcvMsgHtml(r.code === 'bad-history' || r.code === 'bad-input' ? 'amber' : 'blue', r.message, '');
                 else if (r.complete && !r.doses.length) body = pcvMsgHtml('green', 'ครบตามเกณฑ์แล้ว ไม่ต้องนัด PCV เพิ่ม', 'ตามที่เจ้าหน้าที่ระบุ ระบบไม่ได้ตรวจวันที่ฉีดย้อนหลัง');
-                else body = pcvDosesHtml(r, bDate);
+                else {
+                    const merged = pcvMergedBody(r, bDate);
+                    if (!merged) return;   // เข็ม PCV ทั้งหมดอยู่ในการ์ดวันนี้/วันนัดถัดไปแล้ว ไม่ต้องมีการ์ดล่าง
+                    body = merged.html; cardTitle = merged.title;
+                }
             }
             const age = calculateDetailedAge(bDate, vDate);
             box.innerHTML = `<div class="bg-sky-50 border-2 border-sky-500 rounded-2xl overflow-hidden shadow-lg">
                 <div class="bg-gradient-to-r from-sky-700 to-cyan-500 text-white px-3 sm:px-4 py-3 font-black text-base sm:text-lg flex flex-wrap justify-between items-center gap-2 shadow-sm">
-                    <span>💉 แผน PCV (นิวโมค็อกคัส)</span><span class="bg-white/20 px-2 py-0.5 rounded text-xs sm:text-sm border border-white/30">อายุ ${age.years ? age.years + ' ปี ' : ''}${age.months} เดือน</span>
+                    <span>💉 ${cardTitle}</span><span class="bg-white/20 px-2 py-0.5 rounded text-xs sm:text-sm border border-white/30">อายุ ${age.years ? age.years + ' ปี ' : ''}${age.months} เดือน</span>
                 </div>
                 <div class="p-4">${body}</div>
             </div>`;
             box.classList.remove('hidden');
         }
         /** หมายเหตุในการ์ดรอบ 6 ด./9 ด./1 ปี/1 ปี 6 ด. ของแท็บแผนการฉีดวัคซีน */
-        function pcvRoundNote(code) {
+        function pcvRoundNote(code, inSearchTab) {
             if (!PCV_ROUND_NOTE_CODES.includes(code)) return '';
+            // แท็บแผนการฉีดวัคซีนมีการ์ด PCV ท้ายตาราง ส่วนแท็บค้นหาวันฉีดมีตัวเลือก "PCV เข็มเดี่ยว" ในรายการเลือกอายุ
+            const where = inSearchTab ? 'หรือเลือก "PCV เข็มเดี่ยว" ในรายการด้านบนเพื่อดูวันมาเฉพาะ PCV' : 'ดูการ์ด PCV ท้ายตาราง';
             const txt = code === '1y'
-                ? 'เด็กที่เริ่ม PCV ช้า อาจรับ PCV เข็มแรกหรือเข็มที่ 2 พร้อมรอบนี้ ดูการ์ด PCV ท้ายตาราง'
-                : 'เด็กที่เริ่ม PCV ช้า อาจรับ PCV พร้อมรอบนี้ ดูการ์ด PCV ท้ายตาราง';
+                ? `เด็กที่เริ่ม PCV ช้า อาจรับ PCV เข็มแรกหรือเข็มที่ 2 พร้อมรอบนี้ ${where}`
+                : `เด็กที่เริ่ม PCV ช้า อาจรับ PCV พร้อมรอบนี้ ${where}`;
             return `<div class="mt-2 border border-dashed border-sky-400 bg-sky-50 text-sky-800 p-2.5 rounded-lg text-xs font-bold flex items-start"><span class="mr-2">💉</span><span>${txt}</span></div>`;
         }
         /** การ์ด PCV ท้ายตารางในแท็บแผนการฉีดวัคซีน (สำหรับผู้ปกครอง) — เข็มเดี่ยวไม่ผูกกับรอบอายุใดในชีต จึงต้องมีการ์ดนี้ */
@@ -1517,6 +1596,7 @@
         }
 
         function buildNextAppointmentModalCard(code, startCalcDate, bDate, mode) {
+            lastNextApptDate = null;
             const currVac = vaccineSchedules[code];
             const container = document.getElementById('modalNextApptContent');
             
@@ -1536,6 +1616,7 @@
             }
 
             let apptDate = findNextApptDate(targetDate, nextVac.weeks);
+            lastNextApptDate = apptDate;
             if (!apptDate) { showApptSearchFailed(container, nextVac.name); return; }
             let altDates = findAltDates(apptDate, nextVac.weeks, 12);
             let hDate = formatHosxpDate(apptDate);
@@ -1597,8 +1678,8 @@
             displayCalendar(apptDate);
         }
 
-        function buildSpecificAppointmentModalCard(code, targetDate, bDate) {
-            const targetVac = vaccineSchedules[code]; 
+        function buildSpecificAppointmentModalCard(code, targetDate, bDate, vacOverride) {
+            const targetVac = vacOverride || vaccineSchedules[code];
             const container = document.getElementById('modalNextApptContent');
 
             let apptDate = findNextApptDate(targetDate, targetVac.weeks);
