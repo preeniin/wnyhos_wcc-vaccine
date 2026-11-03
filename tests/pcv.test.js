@@ -391,6 +391,67 @@ test('ประวัติแบบจำนวนเข็ม: ข้อมู
   assert.equal(code({ count: 1, dose1: D(2026, 4, 8), dose2: D(2026, 6, 10) }), 'bad-history'); // วันที่เข็ม 2 แต่ count = 1
 });
 
+test('เข็ม "พร้อมรอบ" และเด็กอยู่ในช่วงอายุของรอบนั้นแล้ว → ถึงกำหนดวันนี้ (แม้วันนี้ไม่ใช่วันเปิดของรอบ) พร้อมป้ายรอบ', () => {
+  const birth = D(2025, 11, 1);                                      // อายุ 12 เดือน 2 วัน ในวันที่ 3 พ.ย. 2569 (วันอังคาร สัปดาห์ 1 = รอบ 1 ปีไม่เปิด)
+  const tue = PCV.plan({ birth, visit: D(2026, 11, 3), history: { count: 2, startAge: 2 }, env });
+  assert.equal(tue.doses[2].state, 'due');
+  assert.equal(iso(tue.doses[2].date), '2026-11-03');
+  assert.equal(tue.doses[2].withVisit, '1y');
+  assert.ok(tue.doses[2].label.includes('LAJE1'));
+  assert.equal(tue.doses[2].session, null);
+  assert.equal(tue.complete, false);
+  // วันพุธที่รอบเปิดจริง ผลเหมือนกัน
+  const wed = PCV.plan({ birth, visit: D(2026, 11, 11), history: { count: 2, startAge: 2 }, env });
+  assert.equal(wed.doses[2].state, 'due'); assert.equal(wed.doses[2].withVisit, '1y');
+  // ใส่วันที่ฉีดจริง ห่างพอ → ถึงกำหนด; เข็ม 2 เพิ่งฉีดสัปดาห์ก่อน (ห่าง < 8 สัปดาห์) → ยังไม่ถึงกำหนด นัดหลังครบ 8 สัปดาห์
+  const dated = PCV.plan({ birth, visit: D(2026, 11, 3), history: { dose1: D(2026, 1, 7), dose2: D(2026, 3, 4) }, env });
+  assert.equal(dated.startMonths, 2); assert.equal(dated.doses[2].state, 'due');
+  const tooSoon = PCV.plan({ birth, visit: D(2026, 11, 3), history: { dose1: D(2026, 1, 7), dose2: D(2026, 10, 28) }, env });
+  assert.equal(tooSoon.doses[2].state, 'planned');
+  assert.ok(tooSoon.doses[2].date >= D(2026, 12, 23), 'ต้องห่างเข็ม 2 อย่างน้อย 56 วัน');
+  // ยังไม่ถึงช่วงอายุของรอบ (11 เดือน 27 วัน) → ยังเป็นนัด ไม่ใช่วันนี้
+  const early = PCV.plan({ birth, visit: D(2026, 10, 28), history: { count: 2, startAge: 2 }, env });
+  assert.equal(early.doses[2].state, 'planned');
+  // เลยช่วงอายุของรอบแล้ว (21 เดือน) → ถึงกำหนดวันนี้ แต่ไม่ผูกกับรอบ
+  const late = PCV.plan({ birth: D(2025, 2, 1), visit: D(2026, 11, 3), history: { count: 2, startAge: 2 }, env });
+  assert.equal(late.doses[2].state, 'due'); assert.equal(late.doses[2].withVisit, null);
+});
+
+test('เข็มที่ถึงกำหนดวันนี้แต่ล่าช้ากว่าตารางมาก (≥ LATE_WARN_MONTHS) → มีคำเตือนให้แพทย์พิจารณา; ล่าช้าน้อยกว่านั้นไม่เตือน', () => {
+  const visit = D(2026, 11, 4);
+  const mk = months => addMonths(visit, -months);
+  const warn = r => r.doses.some(d => d.state === 'due' && d.warnings.some(w => w.includes('ล่าช้า')));
+  // เริ่ม 2 เดือน ฉีดมา 1 เข็ม: เข็ม 2 ควรได้ตอน 4 เดือน
+  assert.equal(warn(PCV.plan({ birth: mk(9), visit, history: { count: 1, startAge: 2 }, env })), false, 'ช้า 5 เดือน (< 6) ยังไม่เตือน');
+  assert.equal(warn(PCV.plan({ birth: mk(10), visit, history: { count: 1, startAge: 2 }, env })), true, 'ช้า 6 เดือน เตือน');
+  assert.equal(warn(PCV.plan({ birth: mk(20), visit, history: { count: 1, startAge: 2 }, env })), true);
+  const w = PCV.plan({ birth: mk(20), visit, history: { count: 1, startAge: 2 }, env }).doses[1].warnings.find(x => x.includes('ล่าช้า'));
+  assert.ok(w.includes('16 เดือน') && w.includes('4 เดือน'), w);
+  // เข็มที่ไม่ใช่ "ถึงกำหนดวันนี้" ไม่เตือน และเด็กที่มาตรงเวลาไม่เตือน
+  assert.equal(warn(PCV.plan({ birth: mk(5), visit, env })), false);
+  assert.equal(warn(PCV.plan({ birth: mk(12), visit, history: { count: 2, startAge: 2 }, env })), false);
+  assert.equal(PCV.LATE_WARN_MONTHS, 6);
+});
+
+test('เข็มที่ตกตอนอายุ ≥ 24 เดือน → เตือนให้ปรึกษาแพทย์ ยกเว้นเข็ม 2 ของผู้เริ่ม 19–23 เดือน', () => {
+  const has24 = d => d.warnings.some(w => w.includes('≥ 24 เดือน'));
+  // เริ่ม 10 เดือน ฉีดมา 1 เข็ม มาตอน 23 เดือน 28 วัน: เข็ม 2 ถึงกำหนดวันนี้ (มีคำเตือนล่าช้า) เข็ม 3 (เดี่ยว อายุ 15 เดือน ไม่มีเพดาน) ตกหลัง 24 เดือน
+  const r = PCV.plan({ birth: D(2025, 1, 4), visit: D(2026, 12, 2), history: { count: 1, startAge: 10 }, env });
+  assert.equal(r.doses[2].state, 'planned');
+  assert.ok(PCV.ageMonths(D(2025, 1, 4), r.doses[2].date) >= 24);
+  assert.ok(has24(r.doses[2]), 'ต้องเตือนอายุ ≥ 24 เดือน');
+  // ผู้เริ่ม 19 เดือน เข็ม 2 ตอนอายุ 25 เดือน (ถึงกำหนดวันนี้) ไม่เตือน เพราะเป็นแถวที่ตัดสินใจไว้ว่าไม่เตือน
+  const ex = PCV.plan({ birth: D(2024, 10, 1), visit: D(2026, 11, 4), history: { count: 1, startAge: 19 }, env });
+  assert.equal(ex.doses[1].state, 'due');
+  assert.deepEqual(ex.doses[1].warnings, []);
+  // เข็มที่ตกก่อน 24 เดือนไม่เตือนข้อนี้
+  const early = PCV.plan({ birth: D(2026, 3, 4), visit: D(2026, 11, 4), env });
+  assert.ok(!early.doses.some(has24));
+  // ไม่เตือนซ้ำ: เข็มที่มีคำเตือนอื่นอยู่แล้ว (ล่าช้ามาก) ไม่ซ้อนข้อความอายุ ≥ 24 เดือน
+  const late = PCV.plan({ birth: D(2024, 6, 4), visit: D(2026, 11, 4), history: { count: 1, startAge: 2 }, env });
+  assert.ok(late.doses[1].warnings.some(w => w.includes('ล่าช้า')) && !has24(late.doses[1]));
+});
+
 test('แก้ PCV_WEEKS ได้ที่เดียว: ถ้าเปลี่ยนเป็นเว้นสัปดาห์ เข็มเดี่ยวต้องตามสัปดาห์ใหม่', () => {
   const visit = D(2026, 11, 11);
   const r = PCV.plan({ birth: addMonths(visit, -9), visit, env: { ...env, pcvWeeks: [2, 4] } });

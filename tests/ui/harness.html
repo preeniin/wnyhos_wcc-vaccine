@@ -43,7 +43,7 @@ f.onload = async () => {
     // ---------- 1) กวาดอายุ × วันที่มารับบริการ × ประวัติ PCV ----------
     const visits = [new Date(2026, 10, 4), new Date(2026, 10, 5), new Date(2026, 11, 2), new Date(2027, 0, 6)];
     for (const vd of visits) {
-      for (let days = 70; days <= 700; days += STEP) {
+      for (let days = 70; days <= 780; days += STEP) {
         const b = new Date(vd); b.setDate(b.getDate() - days);
         const ageM = Math.floor(days / 30.4);
         const hs = [['none', '']];
@@ -62,9 +62,16 @@ f.onload = async () => {
           // การ์ด PCV ต้องไม่มีปุ่ม Copy (กัน Copy ผิดวัน)
           if (!pcvHidden() && $('modalPcvContent').querySelector('button')) fail('copybtn', tag + ' การ์ด PCV มีปุ่ม');
           // แถว PCV ในการ์ดวันนี้ต้องไม่ซ้ำ
-          const todayRows = [...$('modalCurrentVaccineContent').querySelectorAll('.border-green-100, .border-sky-400')].filter(e => e.textContent.trim().startsWith('PCV'));
+          // ชื่อวัคซีนอยู่ใน .font-black (ข้อความทั้งแถวขึ้นต้นด้วยอีโมจิ จึงเช็คทั้งแถวไม่ได้ — เคยพลาดเพราะเรื่องนี้)
+          const isPcvRow = e => { const nm = e.querySelector('.font-black'); return !!nm && nm.textContent.trim().startsWith('PCV'); };
+          const rowsAll = [...$('modalCurrentVaccineContent').querySelectorAll('.border-green-100, .border-sky-400')];
+          const todayRows = rowsAll.filter(isPcvRow);
+          const genericRows = rowsAll.filter(e => e.classList.contains('border-green-100') && isPcvRow(e));
+          count('pcvRowChecks');
           if (todayRows.length > 1) fail('duplicate', tag + ' แถว PCV ซ้ำในการ์ดวันนี้ ' + todayRows.length);
+          if (genericRows.length) fail('genericrow', tag + ' มีประวัติแล้วแต่แถว PCV ทั่วไปจากชีตยังอยู่ในการ์ดวันนี้');
           if (h === 'done' && todayRows.length) fail('done', tag + ' เลือกครบแล้วแต่ยังมีแถว PCV ในการ์ดวันนี้');
+          // วัคซีนวันนี้ที่เป็นของรอบเดียวกัน: ถ้าเด็กอยู่ในช่วงอายุของรอบที่ PCV ผูกอยู่ ต้องไม่เห็นเข็มนั้นถูกเลื่อนไปการ์ดฟ้า (ตรวจด้านล่างผ่านแผน)
           const de = d.documentElement;
           if (de.scrollWidth > de.clientWidth + 1) fail('overflow', tag + ' กว้างเกินจอ');
 
@@ -78,6 +85,10 @@ f.onload = async () => {
                                                                     : (nx.includes(fmt(dd.date)) || box.includes(fmt(dd.date)));
             if (!ok) fail('missing', tag + ' เข็ม ' + dd.n + ' (' + dd.state + ') ไม่ปรากฏในหน้า');
           }
+          // เด็กอายุ ≥ 24 เดือนที่มีประวัติ ต้องมีคำเตือนเด่น "ปรึกษาแพทย์" เสมอ (แม้ไม่เหลือการ์ดฟ้า)
+          if (w.PCV.ageMonths(b, vd) >= 24 && !r.complete) { count('over24'); if (pcvHidden() || !box.includes('24')) fail('over24', tag + ' ไม่มีคำเตือนอายุ ≥ 24 เดือน'); }
+          // เข็มที่ถึงกำหนดวันนี้แต่ล่าช้ามาก ต้องแสดงคำเตือนในการ์ดวันนี้
+          for (const dd of r.doses) if (dd.state === 'due' && dd.warnings.some(x => x.includes('ล่าช้า'))) { count('lateWarn'); if (!cur.includes('ล่าช้า')) fail('latewarn', tag + ' เข็ม ' + dd.n + ' ล่าช้ามากแต่ไม่มีคำเตือนในการ์ดวันนี้'); }
           const routine = w.eval('lastNextApptDate');
           const promoted = !$('nextVacChips');   // การ์ดนัดถัดไปถูกแทนที่ด้วยเข็มเดี่ยว
           const soloSame = r.doses.find(x => x.state === 'planned' && x.session && same(x.date, routine));
@@ -125,6 +136,19 @@ f.onload = async () => {
     $('pcvHist').value = '1'; w.onPcvHistChange(); $('pcvStartAge').value = '5'; $('pcvDose1Date').value = '01/01/2569';
     w.resetAll();
     if ($('pcvHist').value || $('pcvStartAge').value || $('pcvDose1Date').value || !$('pcvHistDetail').classList.contains('hidden')) fail('reset', 'รีเซ็ตแล้วช่องประวัติ PCV ไม่ว่าง');
+
+    // ---------- 5.5) กรณีที่ผู้ใช้เจอจริง (3 พ.ย. 2569) ----------
+    // เด็กอายุ 12 เดือน 2 วัน ฉีดแล้ว 2 เข็ม (เริ่ม 2 เดือน) มาวันอังคาร ซึ่งไม่ใช่วันเปิดรอบ 1 ปี
+    // เข็ม 3 ต้องอยู่ในการ์ด "ต้องฉีดวันนี้" เหมือน JE เพียงแถวเดียว และไม่มีการ์ดฟ้านัดไปวันอื่น
+    $('birthDate').value = '01/11/2568'; $('visitDate').value = '03/11/2569';
+    $('pcvHist').value = '2'; w.onPcvHistChange(); $('pcvStartAge').value = '2'; w.calculateAge();
+    {
+      const rows = [...$('modalCurrentVaccineContent').querySelectorAll('.border-green-100, .border-sky-400')].filter(e => { const nm = e.querySelector('.font-black'); return nm && nm.textContent.trim().startsWith('PCV'); });
+      if (rows.length !== 1 || !/PCV3/.test(rows[0].textContent)) fail('case12m', 'แถว PCV ในการ์ดวันนี้ต้องมีแถวเดียวคือ PCV3 แต่พบ ' + rows.map(r => r.textContent.trim().slice(0, 12)).join(' | '));
+      if (!pcvHidden()) fail('case12m', 'ยังมีการ์ดฟ้า (เข็มที่เหลือ) ทั้งที่เข็ม 3 ถึงกำหนดวันนี้แล้ว');
+      if (rows[0] && !rows[0].textContent.includes('LAJE1')) fail('case12m', 'แถว PCV3 ไม่ระบุว่าพร้อมรอบ 1 ปี (LAJE1)');
+    }
+    w.closeResultModal();
 
     // ---------- 6) แท็บแผนการฉีดวัคซีน + ฟังก์ชันอายุ ----------
     const plan = $('fullScheduleContainer');

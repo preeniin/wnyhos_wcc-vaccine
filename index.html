@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 49 · 3 พ.ย. 2569 15:38 (อายุ สัปดาห์+วัน, กด Enter คำนวณ, เอาปุ่ม Copy ออกจากการ์ด PCV)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 51 · 3 พ.ย. 2569 16:43 (PCV: เด็กอยู่ในช่วงอายุของรอบ = ฉีดวันนี้พร้อมรอบ, แก้แถว PCV ซ้ำ, เตือนล่าช้ามาก และอายุ/เข็มที่ตก ≥ 24 เดือน)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -1419,7 +1419,7 @@
             return { kind: 'plan', history };
         }
         function pcvMsgHtml(tone, title, sub) {
-            const cls = { amber: 'bg-amber-50 border-amber-400 text-amber-900', blue: 'bg-blue-50 border-blue-300 text-blue-900', green: 'bg-green-50 border-green-400 text-green-900' }[tone];
+            const cls = { amber: 'bg-amber-50 border-amber-400 text-amber-900', blue: 'bg-blue-50 border-blue-300 text-blue-900', green: 'bg-green-50 border-green-400 text-green-900', red: 'bg-red-50 border-red-500 text-red-900' }[tone];
             return `<div class="${cls} border-2 rounded-xl p-4 font-black text-sm leading-snug">${title}${sub ? `<div class="font-bold text-xs mt-1 opacity-80">${sub}</div>` : ''}</div>`;
         }
         // วันนัดครั้งถัดไปของการ์ดม่วง (ตั้งค่าใน buildNextAppointmentModalCard) ใช้เช็คว่าเข็ม PCV ตรงวันเดียวกันไหม
@@ -1445,8 +1445,8 @@
             box.insertAdjacentHTML('afterend', `<div class="mb-3 px-1"><div class="text-[11px] font-bold text-gray-500 mb-1">วัคซีนที่จะฉีดรอบนี้</div><div id="nextVacChips" class="flex flex-wrap gap-1.5">${chips}</div><div id="nextVacExtra"></div></div>`);
         }
         function pcvTodayRowHtml(d) {
-            const how = d.state === 'due' ? 'ถึงกำหนดแล้ว ฉีดได้วันนี้'
-                : d.label ? 'ฉีดพร้อมวัคซีนวันนี้ · ' + d.label
+            const how = d.label ? 'ฉีดพร้อมวัคซีนวันนี้ · ' + d.label
+                : d.state === 'due' ? 'ถึงกำหนดแล้ว ฉีดได้วันนี้'
                 : 'ทันที (ไม่ผูกกับรอบวัคซีนอื่น)';
             const notes = (d.notes || []).filter(t => !t.startsWith('ถึงกำหนดแล้ว'))
                 .map(t => `<div class="mt-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 text-[11px] font-bold leading-snug">${t}</div>`).join('');
@@ -1618,7 +1618,8 @@
             const hist = readPcvHistory();
             // ชีตใส่ "PCV" ทั่วไปไว้ในรอบ 2 ด./4 ด./1 ปี ถ้ามีประวัติแล้ว ให้ใช้แถวของแผนรายคนแทน (กันซ้ำ และกันบอกให้ฉีดทั้งที่ไม่ถึงกำหนด/ครบแล้ว)
             if (hist.kind === 'plan') {
-                document.querySelectorAll('#modalCurrentVaccineContent .border-green-100').forEach(el => { if (el.textContent.trim().startsWith('PCV')) el.remove(); });
+                // ชื่อวัคซีนอยู่ใน .font-black (ข้อความทั้งแถวขึ้นต้นด้วยอีโมจิ จึงเช็ค textContent ของทั้งแถวไม่ได้)
+                document.querySelectorAll('#modalCurrentVaccineContent .border-green-100').forEach(el => { const nm = el.querySelector('.font-black'); if (nm && nm.textContent.trim().startsWith('PCV')) el.remove(); });
                 document.querySelectorAll('#nextVacChips [data-vac="PCV"]').forEach(el => el.remove());   // รายการรอบหน้า: ใช้ PCV ตามแผนรายคนแทน
             }
             let body, cardTitle = 'แผน PCV (นิวโมค็อกคัส)';
@@ -1630,12 +1631,14 @@
                 body = pcvMsgHtml('amber', hist.message, '');
             } else {
                 const r = PCV.plan({ birth: bDate, visit: vDate, history: hist.kind === 'plan' ? hist.history : {}, env: pcvEnv() });
-                if (!r.ok) body = pcvMsgHtml(r.code === 'bad-history' || r.code === 'bad-input' ? 'amber' : 'blue', r.message, '');
+                if (!r.ok) body = pcvMsgHtml(r.code === 'too-old' ? 'red' : (r.code === 'bad-history' || r.code === 'bad-input' ? 'amber' : 'blue'), r.message, r.code === 'too-old' ? 'ปรึกษาแพทย์ก่อนฉีดหรือนัด PCV' : '');
                 else if (r.complete && !r.doses.length) body = pcvMsgHtml('green', 'ครบตามเกณฑ์แล้ว ไม่ต้องนัด PCV เพิ่ม', 'ตามที่เจ้าหน้าที่ระบุ ระบบไม่ได้ตรวจวันที่ฉีดย้อนหลัง');
                 else {
+                    // เด็กอายุ ≥ 24 เดือนที่มีประวัติ: CPG แถว ≥ 24 เดือนให้ "พิจารณาตามชนิดวัคซีน" แผนที่คำนวณเป็นเพียงตามอายุที่เริ่ม จึงต้องมีคำเตือนเด่นเสมอ
+                    const over24 = (totalMonths >= 24 && !r.complete) ? pcvMsgHtml('red', '⚠️ เด็กอายุ ≥ 24 เดือน — ปรึกษาแพทย์ก่อนฉีดหรือนัด PCV', 'CPG ให้พิจารณาตามชนิดวัคซีนและช่วงอายุที่ได้รับการรับรอง แผนที่แสดงคำนวณตามอายุที่เริ่มเข็มแรกเท่านั้น') + '<div class="h-3"></div>' : '';
                     const merged = pcvMergedBody(r, bDate);
-                    if (!merged) return;   // เข็ม PCV ทั้งหมดอยู่ในการ์ดวันนี้/วันนัดถัดไปแล้ว ไม่ต้องมีการ์ดล่าง
-                    body = merged.html; cardTitle = merged.title;
+                    if (!merged && !over24) return;   // เข็ม PCV ทั้งหมดอยู่ในการ์ดวันนี้/วันนัดถัดไปแล้ว ไม่ต้องมีการ์ดล่าง
+                    body = over24 + (merged ? merged.html : ''); if (merged) cardTitle = merged.title;
                 }
             }
             const age = calculateDetailedAge(bDate, vDate);

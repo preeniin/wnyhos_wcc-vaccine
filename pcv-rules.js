@@ -37,6 +37,8 @@
     '18m': 'รอบ 18 เดือน (DTP4 + OPV4 + MMR2)',
   };
 
+  // เข็มที่ "ถึงกำหนดวันนี้" แต่ช้ากว่าอายุที่ตารางกำหนด ≥ ค่านี้ (เดือน) → คำเตือนให้แพทย์พิจารณา (ปรับได้ค่าเดียว)
+  const LATE_WARN_MONTHS = 6;
   const MIN_START_MONTHS = 2;   // ต่ำกว่านี้ ตาราง CPG ไม่ครอบคลุม
   const MAX_START_MONTHS = 23;  // 24 เดือนขึ้นไป: "พิจารณาตามชนิดวัคซีนและช่วงอายุที่ได้รับการรับรอง"
 
@@ -159,10 +161,21 @@
     function schedule(n, spec, notBefore, gapNote) {
       let r = resolve(spec, notBefore, gapNote);
       let state = 'planned';
-      // เด็กที่มีประวัติและเลยกำหนดแล้ว → "ถึงกำหนดวันนี้" ถ้าห่างเข็มก่อนเพียงพอ
-      if (count >= 1 && r.date && r.date <= visit) {
-        if (notBefore <= visit) { r.date = visit; state = 'due'; r.visitCode = null; r.fellBack = false; r.notes.push('ถึงกำหนดแล้ว ฉีดได้ในวันที่มารับบริการ'); }
-        else { r = resolve(spec, maxDate(notBefore, visit), gapNote); }
+      // เข็มที่ "ไปพร้อมรอบ" และวันที่มารับบริการอยู่ในช่วงอายุของรอบนั้นอยู่แล้ว (เช่น อายุ 12–<18 เดือน = รอบ 1 ปี)
+      // → ถือว่าถึงกำหนดวันนี้ พร้อมวัคซีนของรอบ เหมือนที่การ์ด "ต้องฉีดวันนี้" ถือกับวัคซีนอื่นของรอบ
+      // (ไม่ดูว่าวันนี้เป็นสัปดาห์ที่คลินิกเปิดหรือไม่ — แอปเดิมก็ไม่ดูกับวัคซีนอื่น)
+      const visitAge = ageMonths(birth, visit);
+      const inBand = !!(spec.how === 'with' && r.visitCode && visitAge >= VISIT_AGE[r.visitCode] && visitAge < VISIT_BAND_END[r.visitCode]);
+      // เด็กที่มีประวัติและเลยกำหนดแล้ว หรืออยู่ในช่วงอายุของรอบ → "ถึงกำหนดวันนี้" ถ้าห่างเข็มก่อนเพียงพอ
+      let keepRound = false;
+      if (count >= 1 && r.date && (r.date <= visit || inBand) && notBefore <= visit) {
+        r.date = visit; state = 'due'; r.fellBack = r.fellBack && inBand;
+        if (inBand) keepRound = true; else r.visitCode = null;
+        r.notes.push('ถึงกำหนดแล้ว ฉีดได้ในวันที่มารับบริการ');
+        // ล่าช้ากว่าอายุที่ตารางกำหนดไว้มาก → เตือนให้แพทย์พิจารณา (CPG ไม่ได้ระบุกรณีล่าช้าระหว่างทาง ผู้ใช้ให้เตือน)
+        const target = spec.how === 'with' ? VISIT_AGE[spec.visit] : spec.how === 'age' ? spec.months : startM + Math.round(spec.weeks / 4.345);
+        const late = visitAge - target;
+        if (late >= LATE_WARN_MONTHS) r.warnings.push('ล่าช้ากว่ากำหนดประมาณ ' + late + ' เดือน (ตามตารางควรได้เมื่ออายุ ' + target + ' เดือน) — ให้แพทย์พิจารณาก่อนฉีด');
       }
       if (!r.date) return { n, state: 'unavailable', date: null, warnings: ['หาวันให้บริการไม่พบ — ตรวจสอบตารางสัปดาห์/วันหยุด'].concat(r.warnings), notes: r.notes };
       // เพดานอายุของ CPG (เช่น "ไม่ควรเกิน 18 เดือน") ตรวจกับวันสุดท้ายที่เลือกจริง รวมกรณี "ถึงกำหนดวันนี้"
@@ -171,7 +184,7 @@
         r.warnings.push('เกินอายุ ' + spec.maxAge + ' เดือนที่ CPG แนะนำ — ตรวจสอบก่อนฉีด/นัด');
       }
       // "ถึงกำหนดวันนี้" = ฉีดวันที่มารับบริการเลย ไม่ผูกกับรอบวัคซีนอื่น/ช่วงเช้า (วันนี้อาจไม่ใช่วันของรอบนั้น)
-      const withRound = spec.how === 'with' && state !== 'due';
+      const withRound = spec.how === 'with' && (state !== 'due' || keepRound);
       return {
         n, state, date: r.date, withVisit: withRound ? r.visitCode : null, fellBack: r.fellBack,
         label: withRound ? VISIT_LABEL[r.visitCode] : null,
@@ -227,9 +240,18 @@
       unverifiedGap = true;
       doses[nextIdx].notes.push('ไม่ได้ตรวจระยะห่างจากเข็มก่อน (ไม่ได้ระบุวันที่ฉีด)');
     }
+    // เข็มที่ตกตอนอายุ ≥ 24 เดือน (ตาราง CPG ครอบคลุมถึง 23 เดือน) → เตือนให้ปรึกษาแพทย์ (ผู้ใช้สั่ง 3 พ.ย. 2569)
+    // ยกเว้นเข็ม 2 ของผู้เริ่ม 19–23 เดือน (แถว "ห่าง ≥ 8 สัปดาห์ ไม่มีเพดาน" ซึ่งตกหลัง 24 เดือนโดยธรรมชาติ ผู้ใช้สั่งไม่เตือน)
+    // และไม่เตือนซ้ำถ้าเข็มนั้นมีคำเตือนอื่นอยู่แล้ว (เกินเพดาน/เลยช่วงรอบ/ล่าช้ามาก)
+    const exemptD2 = rule.d2.how === 'gap' && !rule.d2.maxAge;
+    doses.forEach(d => {
+      if (d.state === 'given' || !d.date) return;
+      if (d.n === 2 && exemptD2) return;
+      if (ageMonths(birth, d.date) >= 24 && !d.warnings.length) d.warnings.push('เข็มนี้ตกตอนอายุ ≥ 24 เดือน (ตาราง CPG ครอบคลุมถึง 23 เดือน) — ปรึกษาแพทย์ก่อนฉีดหรือนัด');
+    });
     const complete = !doses.some(d => d.state !== 'given');
     return { ok: true, complete, unverifiedGap, startMonths: startM, gapDays, doses, cpgAlt: rule.cpgAlt };
   }
 
-  return { RULES, VISIT_AGE, VISIT_LABEL, VISIT_BAND_END, MIN_START_MONTHS, MAX_START_MONTHS, minGapDays, ageMonths, plan };
+  return { RULES, VISIT_AGE, VISIT_LABEL, VISIT_BAND_END, MIN_START_MONTHS, MAX_START_MONTHS, LATE_WARN_MONTHS, minGapDays, ageMonths, plan };
 });
