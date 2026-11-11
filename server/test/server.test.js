@@ -86,6 +86,7 @@ before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wcc-test-'));
   webDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wcc-web-'));
   fs.copyFileSync(INDEX_HTML, path.join(webDir, 'index.html'));
+  fs.copyFileSync(path.join(ROOT, '..', 'pcv-rules.js'), path.join(webDir, 'pcv-rules.js'));
   fs.copyFileSync(path.join(ROOT, 'admin.html'), path.join(webDir, 'admin.html'));
   const port = 20000 + Math.floor(Math.random() * 20000);
   base = `http://127.0.0.1:${port}`;
@@ -104,6 +105,13 @@ test('หน้าสาธารณะ: index.html และ CSV เปิด�
   assert.match(v, /^AgeCode,AgeName/);
   assert.equal((await fetch(base + '/data/holidays.csv')).status, 200);
   assert.equal((await fetch(base + '/admin')).headers.get('content-security-policy')?.includes("frame-ancestors 'none'"), true);
+});
+
+test('เสิร์ฟ /pcv-rules.js (ถ้าขาด PCV จะหายเงียบ ๆ)', async () => {
+  const r = await fetch(base + '/pcv-rules.js');
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('content-type'), /javascript/);
+  assert.match(await r.text(), /PCV/);
 });
 
 test('ไฟล์อื่นเข้าไม่ได้ (ไม่มี static ทั่วไป / path traversal)', async () => {

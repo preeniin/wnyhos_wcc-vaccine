@@ -148,6 +148,7 @@ const server = http.createServer(async (req, res) => {
 
     // --- public ---
     if (m === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(WEB_DIR, 'index.html'), 'text/html; charset=utf-8');
+    if (m === 'GET' && p === '/pcv-rules.js') return serveFile(res, path.join(WEB_DIR, 'pcv-rules.js'), 'application/javascript; charset=utf-8');
     if (m === 'GET' && p === '/data/vaccines.csv') return send(res, 200, L.vaccinesToCsv(store.vaccines), 'text/csv; charset=utf-8');
     if (m === 'GET' && p === '/data/holidays.csv') return send(res, 200, L.holidaysToCsv(store.holidays), 'text/csv; charset=utf-8');
     if (m === 'GET' && (p === '/admin' || p === '/admin/' || p === '/admin.html')) {
