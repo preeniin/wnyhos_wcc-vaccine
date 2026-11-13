@@ -1,3 +1,13 @@
 # runtime data of the local server (passwords hash, backups, audit log)
 server/data/
 server/**/*.tmp-*
+
+# local dev (test server data + synced web copy)
+dev/data/
+dev/web/
+
+# เครื่องมือสร้าง CSS (ติดตั้งเฉพาะเครื่องคนแก้หน้าตา)
+tools/offline-build/node_modules/
+
+# ไฟล์ชั่วคราวของเครื่องมือทดสอบเบราว์เซอร์
+.playwright-mcp/

@@ -195,6 +195,135 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
   await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: def }) });
 });
 
+test('audit log ระบุผู้แก้จากอีเมล Cloudflare Access (เฉพาะรูปแบบที่ถูกต้อง) · ไม่มี header = admin', async () => {
+  const { cookie } = await login();
+  const hol = [{ date: '2026-12-01', name: 'ผู้แก้ทดสอบ' }];
+  const put = (extra) => fetch(base + '/api/admin/holidays', { method: 'PUT', headers: { ...J, cookie, ...extra }, body: JSON.stringify({ holidays: hol }) });
+  assert.equal((await put({ 'Cf-Access-Authenticated-User-Email': 'Nurse.A@Example.org' })).status, 200);
+  let audit = fs.readFileSync(path.join(dataDir, 'audit.log'), 'utf8');
+  assert.match(audit, /\tnurse\.a@example\.org\tsave holidays/, 'ต้องบันทึกอีเมล (ตัวพิมพ์เล็ก)');
+  let st = await (await fetch(base + '/api/admin/store', { headers: { cookie, 'Cf-Access-Authenticated-User-Email': 'nurse.a@example.org' } })).json();
+  assert.equal(st.updatedBy, 'nurse.a@example.org');
+  assert.equal(st.me, 'nurse.a@example.org');
+  // header ผิดรูปแบบ (มีช่องว่าง/อักขระต้องห้าม/ขึ้นบรรทัดใหม่) ต้องไม่ถูกเชื่อ → admin
+  for (const bad of ['a b@example.org', 'x<script>@example.org', 'no-at-sign', 'a@b,c@d']) {
+    assert.equal((await put({ 'Cf-Access-Authenticated-User-Email': bad })).status, 200);
+    st = await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json();
+    assert.equal(st.updatedBy, 'admin', bad);
+  }
+  audit = fs.readFileSync(path.join(dataDir, 'audit.log'), 'utf8');
+  assert.doesNotMatch(audit, /script/, 'ค่าแปลกปลอมห้ามเข้า log');
+});
+
+test('ประวัติและคืนค่าจากไฟล์สำรอง: ต้อง login, ตรวจชื่อไฟล์, ตรวจข้อมูลด้วยกติกาเดิม, คงข้อมูลคลินิกเมื่อสำรองรุ่นเก่า, คืนค่าแล้วย้อนกลับได้', async () => {
+  const bk = path.join(dataDir, 'backups');
+  assert.equal((await fetch(base + '/api/admin/history')).status, 401);
+  assert.equal((await fetch(base + '/api/admin/restore', { method: 'POST', headers: J, body: JSON.stringify({ file: 'x' }) })).status, 401);
+
+  const { cookie } = await login(); const H = { ...J, cookie };
+  const putHol = (name) => fetch(base + '/api/admin/holidays', { method: 'PUT', headers: H, body: JSON.stringify({ holidays: [{ date: '2026-12-03', name }] }) });
+  await putHol('สถานะ-A');
+  await putHol('สถานะ-B');       // ตอนบันทึก B → ระบบสำรองสถานะ A ไว้
+  const hist = await (await fetch(base + '/api/admin/history', { headers: { cookie } })).json();
+  assert.ok(hist.audit.length >= 2 && hist.audit[0].what.startsWith('save holidays'), 'audit ต้องเรียงใหม่→เก่า');
+  assert.ok(hist.backups.length >= 2);
+  assert.match(hist.backups[0].file, /^store-\d{14}-[0-9a-f]{4}\.json$/);
+  assert.ok(hist.backups[0].summary && hist.backups[0].summary.vaccines >= 1, 'ต้องมีสรุปของแต่ละไฟล์สำรอง');
+
+  // หาไฟล์สำรองที่เป็นสถานะ A (อ่านเนื้อไฟล์ ไม่พึ่งลำดับชื่อ เพราะเข็มเดียวกันวินาทีเดียวกันเรียงตามค่าสุ่ม)
+  const fileA = fs.readdirSync(bk).find(f => JSON.parse(fs.readFileSync(path.join(bk, f), 'utf8')).holidays.some(h => h.name === 'สถานะ-A'));
+  assert.ok(fileA, 'ต้องมีไฟล์สำรองของสถานะ A');
+  const r = await fetch(base + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: fileA }) });
+  assert.equal(r.status, 200);
+  assert.match(await (await fetch(base + '/data/holidays.csv')).text(), /สถานะ-A/);
+  assert.doesNotMatch(await (await fetch(base + '/data/holidays.csv')).text(), /สถานะ-B/);
+  assert.match(fs.readFileSync(path.join(dataDir, 'audit.log'), 'utf8'), /restore backup store-/);
+  // การคืนค่าเองก็ถูกสำรองไว้ → คืนกลับเป็น B ได้
+  const fileB = fs.readdirSync(bk).find(f => JSON.parse(fs.readFileSync(path.join(bk, f), 'utf8')).holidays.some(h => h.name === 'สถานะ-B'));
+  assert.ok(fileB, 'สถานะ B ต้องถูกสำรองก่อนคืนค่า');
+
+  // ชื่อไฟล์ไม่ถูกต้อง / path traversal / ไม่พบ
+  for (const bad of ['../store.json', '..\\store.json', 'store-1.json', 'admin.json', '', 'store-20260101000000-zzzz.json']) {
+    assert.equal((await fetch(base + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: bad }) })).status, 400, bad);
+  }
+  assert.equal((await fetch(base + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: 'store-20200101000000-abcd.json' }) })).status, 404);
+
+  // ไฟล์สำรองที่ข้อมูลไม่ผ่านกติกา ต้องไม่ถูกนำมาใช้ และไม่ทับของเดิม
+  const badName = 'store-20200102000000-beef.json';
+  fs.writeFileSync(path.join(bk, badName), JSON.stringify({ vaccines: [{ code: 'bad code!', name: 'x' }], holidays: [] }));
+  assert.equal((await fetch(base + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: badName }) })).status, 400);
+  assert.match(await (await fetch(base + '/data/holidays.csv')).text(), /สถานะ-A/, 'ข้อมูลเดิมต้องไม่ถูกทับ');
+
+  // สำรองรุ่นเก่า (ไม่มี settings) → คืนค่าได้และข้อมูลคลินิกคงเดิม
+  const cur = await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json();
+  const oldName = 'store-20200103000000-cafe.json';
+  fs.writeFileSync(path.join(bk, oldName), JSON.stringify({ vaccines: cur.vaccines, holidays: [{ date: '2026-12-04', name: 'จากสำรองรุ่นเก่า' }] }));
+  assert.equal((await fetch(base + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: oldName }) })).status, 200);
+  const after = await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json();
+  assert.deepEqual(after.settings, cur.settings, 'ข้อมูลคลินิกต้องคงเดิม');
+  assert.equal(after.holidays[0].name, 'จากสำรองรุ่นเก่า');
+});
+
+test('กันแก้ทับกัน: บันทึกด้วยเลขรุ่นเก่า → 409 ไม่ทับงานคนอื่น · คนละส่วนไม่ชนกัน · ไม่ส่งเลขรุ่น (เครื่องมือ/รุ่นเก่า) ยังบันทึกได้', async () => {
+  const { cookie } = await login(); const H = { ...J, cookie };
+  const get = async () => (await fetch(base + '/api/admin/store', { headers: { cookie } })).json();
+  const put = (p, body) => fetch(base + p, { method: 'PUT', headers: H, body: JSON.stringify(body) });
+
+  const s0 = await get();
+  assert.ok(s0.rev && Number.isInteger(s0.rev.vaccines) && Number.isInteger(s0.rev.holidays) && Number.isInteger(s0.rev.settings), 'ต้องมีเลขรุ่นของทุกส่วน');
+  // A และ B โหลดหน้าพร้อมกันที่เลขรุ่นเดียวกัน
+  const vA = JSON.parse(JSON.stringify(s0.vaccines)); vA[0].special = 'แก้โดย A';
+  const vB = JSON.parse(JSON.stringify(s0.vaccines)); vB[1].special = 'แก้โดย B';
+  const rA = await put('/api/admin/vaccines', { vaccines: vA, baseRev: s0.rev.vaccines });
+  assert.equal(rA.status, 200);
+  const jA = await rA.json();
+  assert.equal(jA.rev.vaccines, s0.rev.vaccines + 1, 'บันทึกสำเร็จต้องเพิ่มเลขรุ่น');
+  const rB = await put('/api/admin/vaccines', { vaccines: vB, baseRev: s0.rev.vaccines });   // B ยังถือเลขรุ่นเก่า
+  assert.equal(rB.status, 409);
+  const jB = await rB.json();
+  assert.match(jB.error, /ผู้อื่นบันทึก/);
+  assert.equal(jB.rev.vaccines, s0.rev.vaccines + 1);
+  const mid = await get();
+  assert.equal(mid.vaccines[0].special, 'แก้โดย A', 'งานของ A ต้องไม่ถูกทับ');
+  assert.notEqual(mid.vaccines[1].special, 'แก้โดย B', 'งานของ B ที่ถูกปฏิเสธต้องไม่เข้า');
+  assert.equal(mid.rev.vaccines, s0.rev.vaccines + 1, 'คำขอที่ถูกปฏิเสธต้องไม่เพิ่มเลขรุ่น');
+
+  // B โหลดใหม่แล้วบันทึกซ้ำได้
+  vB[0].special = 'แก้โดย A'; // เนื้อหาใหม่ = ข้อมูลล่าสุด + การแก้ของ B
+  assert.equal((await put('/api/admin/vaccines', { vaccines: vB, baseRev: mid.rev.vaccines })).status, 200);
+
+  // คนละส่วนไม่ชนกัน: เลขรุ่นของวันหยุดไม่ขยับจากการบันทึกวัคซีน
+  const s1 = await get();
+  assert.equal(s1.rev.holidays, s0.rev.holidays, 'เลขรุ่นวันหยุดต้องไม่เปลี่ยนเพราะแก้ตารางวัคซีน');
+  assert.equal((await put('/api/admin/holidays', { holidays: [{ date: '2026-12-05', name: 'คนละส่วน' }], baseRev: s1.rev.holidays })).status, 200);
+  assert.equal((await put('/api/admin/settings', { settings: s1.settings, baseRev: s1.rev.settings })).status, 200);
+
+  // ชนิดข้อมูลของ baseRev ไม่ตรง (สตริง/ลบ/ใหญ่เกิน) ถือว่าไม่ตรงรุ่น → 409 ไม่ใช่ล้ม
+  for (const bad of ['0', -1, 1e9, {}, [], true]) {
+    assert.equal((await put('/api/admin/holidays', { holidays: [], baseRev: bad })).status, 409, JSON.stringify(bad));
+  }
+  // ไม่ส่ง baseRev = พฤติกรรมเดิม (ยังบันทึกได้)
+  assert.equal((await put('/api/admin/holidays', { holidays: [{ date: '2026-12-06', name: 'ไม่ส่งรุ่น' }] })).status, 200);
+
+  // นำเข้า CSV และคืนค่า เพิ่มเลขรุ่น → คนที่เปิดหน้าค้างไว้บันทึกทับไม่ได้
+  const s2 = await get();
+  const imp = await fetch(base + '/api/admin/import', { method: 'POST', headers: H, body: JSON.stringify({ holidaysCsv: 'Date,Name\n2026-01-03,นำเข้ารุ่น\n' }) });
+  assert.equal(imp.status, 200);
+  assert.equal((await imp.json()).rev.holidays, s2.rev.holidays + 1);
+  assert.equal((await put('/api/admin/holidays', { holidays: [], baseRev: s2.rev.holidays })).status, 409, 'หน้าค้างก่อนนำเข้า ต้องบันทึกทับไม่ได้');
+});
+
+test('restore: ไฟล์สำรองที่เนื้อเป็น null/array/ตัวเลข ต้องตอบ 400 ไม่ใช่ 500', async () => {
+  const { cookie } = await login(); const H = { ...J, cookie };
+  const bk = path.join(dataDir, 'backups');
+  for (const [i, content] of ['null', '[]', '5', '"text"', 'true', '{{ broken'].entries()) {
+    const name = `store-2018010${i + 1}000000-d00${i}.json`;
+    fs.writeFileSync(path.join(bk, name), content);
+    const r = await fetch(base + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: name }) });
+    assert.equal(r.status, 400, content);
+  }
+});
+
 test('store.json รุ่นเก่า (ไม่มี settings) → เติมค่าตั้งต้นให้ ไม่ทำให้ server ล้ม', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wcc-old-'));
   const seedFile = path.join(ROOT, 'seed');
@@ -208,6 +337,47 @@ test('store.json รุ่นเก่า (ไม่มี settings) → เต�
     for (let i = 0; i < 50 && !res; i++) { try { res = await fetch(`http://127.0.0.1:${port}/data/settings.json`); } catch (e) { await new Promise(r => setTimeout(r, 100)); } }
     assert.ok(res, 'server ไม่ขึ้น');
     assert.equal((await res.json()).clinicShort, 'WCC');
+  } finally { p.kill(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('อัปเกรดจากข้อมูลบนเซิร์ฟเวอร์รุ่นก่อน (store.json ไม่มี rev/updatedBy/settings): ใช้งานเต็มรูปแบบ ไม่เสียข้อมูลเดิม', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wcc-upg-'));
+  const prev = { version: 1, updatedAt: '2026-11-03T00:00:00.000Z',
+    vaccines: [{ code: '2m', name: '2 เดือน', vaccines: [{ name: 'DTP', thai: 'ดีทีพี', type: 'injection' }, { name: 'PCV', thai: 'นิวโมค็อกคัส', type: 'injection' }], schedule: '', weeks: [1, 3], time: '8:00', nextAge: '', special: 'ข้อมูลเดิมบนเซิร์ฟเวอร์' }],
+    holidays: [{ date: '2026-07-20', name: 'ทดสอบเดิม' }], settings: { hospitalName: 'รพ.เดิม', appTitle: 'ชื่อเดิม', clinicShort: 'OLD' } };  // รูปแบบของ v52: มี settings แต่ไม่มี rev/updatedBy
+  fs.writeFileSync(path.join(dir, 'store.json'), JSON.stringify(prev));
+  fs.mkdirSync(path.join(dir, 'backups'), { recursive: true });
+  const port = 20000 + Math.floor(Math.random() * 20000), b = `http://127.0.0.1:${port}`;
+  const env = { ...process.env, PORT: String(port), HOST: '127.0.0.1', DATA_DIR: dir, WEB_DIR: webDir };
+  assert.equal(spawnSync(process.execPath, [path.join(ROOT, 'set-password.js'), '--stdin'], { input: TEST_PW + '\n', env }).status, 0);
+  const p = spawn(process.execPath, [path.join(ROOT, 'server.js')], { env, stdio: 'ignore' });
+  try {
+    let up = false; for (let i = 0; i < 50 && !up; i++) { try { up = (await fetch(b + '/healthz')).ok; } catch (e) { await new Promise(r => setTimeout(r, 100)); } }
+    assert.ok(up, 'server ไม่ขึ้น');
+    const lg = await fetch(b + '/api/login', { method: 'POST', headers: J, body: JSON.stringify({ password: TEST_PW }) });
+    const cookie = (lg.headers.get('set-cookie') || '').split(';')[0]; const H = { ...J, cookie };
+    const st = await (await fetch(b + '/api/admin/store', { headers: { cookie } })).json();
+    assert.deepEqual(st.rev, { vaccines: 0, holidays: 0, settings: 0 }, 'ต้องเติมเลขรุ่นเริ่มต้น');
+    assert.equal(st.settings.clinicShort, 'OLD', 'ข้อมูลคลินิกเดิมต้องไม่ถูกทับด้วยค่าตั้งต้น');
+    assert.equal(st.vaccines[0].special, 'ข้อมูลเดิมบนเซิร์ฟเวอร์');
+    assert.match(await (await fetch(b + '/data/vaccines.csv')).text(), /PCV\/นิวโมค็อกคัส/);
+    // บันทึกทุกส่วนด้วยเลขรุ่นเริ่มต้นได้ แล้วเลขรุ่นเพิ่ม
+    const v = st.vaccines; v[0].special = 'แก้หลังอัปเกรด';
+    let r = await fetch(b + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: v, baseRev: 0 }) });
+    assert.equal(r.status, 200); assert.equal((await r.json()).rev.vaccines, 1);
+    r = await fetch(b + '/api/admin/holidays', { method: 'PUT', headers: H, body: JSON.stringify({ holidays: st.holidays, baseRev: 0 }) }); assert.equal(r.status, 200);
+    r = await fetch(b + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: st.settings, baseRev: 0 }) }); assert.equal(r.status, 200);
+    const after = JSON.parse(fs.readFileSync(path.join(dir, 'store.json'), 'utf8'));
+    assert.deepEqual(after.rev, { vaccines: 1, holidays: 1, settings: 1 });
+    assert.equal(after.updatedBy, 'admin');
+    // ไฟล์สำรองถูกสร้างจากข้อมูลรุ่นเดิม และคืนค่าได้ (รวมสำรองที่ไม่มี rev)
+    const hist = await (await fetch(b + '/api/admin/history', { headers: { cookie } })).json();
+    assert.ok(hist.backups.length >= 3);
+    const oldest = fs.readdirSync(path.join(dir, 'backups')).find(f => JSON.parse(fs.readFileSync(path.join(dir, 'backups', f), 'utf8')).vaccines[0].special === 'ข้อมูลเดิมบนเซิร์ฟเวอร์');
+    assert.ok(oldest, 'ต้องมีไฟล์สำรองของข้อมูลเดิม');
+    r = await fetch(b + '/api/admin/restore', { method: 'POST', headers: H, body: JSON.stringify({ file: oldest }) });
+    assert.equal(r.status, 200);
+    assert.equal((await (await fetch(b + '/api/admin/store', { headers: { cookie } })).json()).vaccines[0].special, 'ข้อมูลเดิมบนเซิร์ฟเวอร์');
   } finally { p.kill(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

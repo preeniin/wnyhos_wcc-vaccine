@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>ตั้งค่า WCC Vaccine</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%92%89%3C/text%3E%3C/svg%3E">
 <style>
   :root { --bg:#f4f7f6; --card:#fff; --ink:#1b2b27; --muted:#5c6f69; --line:#d5dfdb; --brand:#0f766e; --brand-d:#0b5c56; --brand-soft:#e3f3f0; --danger:#b42318; --danger-soft:#fde7e5; --warn:#fff4d6; --warn-ink:#7a5a00; --inj:#0b5cad; --inj-soft:#e3effc; --oral:#8a4b08; --oral-soft:#fdeedb; --ok-soft:#dff5ee; }
   @media (prefers-color-scheme: dark) { :root { --bg:#10191a; --card:#18262a; --ink:#e6f0ed; --muted:#9db3ad; --line:#2c4147; --brand:#2bb3a6; --brand-d:#4fd1c5; --brand-soft:#16403d; --danger:#ff8a80; --danger-soft:#3d1d1a; --warn:#3a3217; --warn-ink:#f0d98a; --inj:#8ec1ff; --inj-soft:#16304d; --oral:#ffc27a; --oral-soft:#4a3018; --ok-soft:#173d33; } }
@@ -89,7 +90,21 @@
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .hidden { display:none !important; }
   .muted { color:var(--muted); font-size:13px; }
+  /* ให้ช่องกรอก/กริดย่อได้ ไม่ดันหน้ากว้างเกินจอ (ค่าตั้งต้นของ input กว้างราว 170px) */
+  input, select { min-width:0; }
+  .grid > *, .vac3 > *, .row > * { min-width:0; }
+  main { min-width:0; }
+  .tablecard { overflow-x:auto; }
   @media (max-width:760px) {
+    /* ตารางวันหยุด: จอแคบให้ 1 แถว = 1 บล็อก (วันที่ | วัน / ชื่อเต็มบรรทัด / ผลต่อการนัด | ลบ) */
+    #tab-hol thead { display:none; }
+    #tab-hol table, #tab-hol tbody { display:block; }
+    #holBody tr { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; align-items:center; padding:10px 0; border-top:1px solid var(--line); }
+    #holBody tr:first-child { border-top:none; }
+    #holBody td { display:block; padding:0; }
+    #holBody td:nth-child(3) { grid-column:1 / -1; }
+    #holBody td:nth-child(5) { text-align:right; }
+    #holBody .tag { white-space:normal; }
     .vhead { display:none; }
     .sum { grid-template-columns:56px 1fr auto; }
     .sum .c-vac, .sum .c-wk, .sum .c-time, .sum .c-next { grid-column:2 / 4; }
@@ -126,6 +141,7 @@
       <button class="tab" role="tab" data-tab="vac" aria-selected="true">💉 ตารางวัคซีน <span class="dot"></span></button>
       <button class="tab" role="tab" data-tab="hol" aria-selected="false">📅 วันหยุด / วันยกเลิก <span class="dot"></span></button>
       <button class="tab" role="tab" data-tab="set" aria-selected="false">🏥 ข้อมูลคลินิก <span class="dot"></span></button>
+      <button class="tab" role="tab" data-tab="his" aria-selected="false">🕘 ประวัติ / คืนค่า</button>
       <button class="tab" role="tab" data-tab="io" aria-selected="false">📦 นำเข้า / ส่งออก CSV</button>
     </div>
 
@@ -160,6 +176,15 @@
         <div id="prevHosp" style="opacity:.85;font-size:14px"></div>
       </div>
       <div class="muted">ชื่อย่อจะแสดงใน: "แผนการฉีดวัคซีน (<b id="prevShort1"></b> Schedule)", "ฐานข้อมูลวันหยุด <b id="prevShort2"></b>" และคำเตือนอายุเกินเกณฑ์</div>
+    </div>
+
+    <div id="tab-his" class="hidden">
+      <div class="note">ระบบสำรองข้อมูลให้ก่อนการบันทึกทุกครั้ง (เก็บ 50 ครั้งล่าสุด) · แต่ละรายการด้านล่างคือ <b>ข้อมูลก่อนที่จะมีการบันทึกเมื่อเวลานั้น</b> · กด "คืนค่า" เพื่อกลับไปใช้ข้อมูลชุดนั้น (ค่าปัจจุบันจะถูกสำรองไว้ก่อน จึงคืนกลับได้อีก)</div>
+      <div id="hisState" class="muted" style="margin-bottom:8px"></div>
+      <h3 style="margin:14px 0 6px">ไฟล์สำรอง</h3>
+      <div class="card tablecard"><table><thead><tr><th style="width:190px">เวลาที่สำรอง</th><th>ข้อมูลในไฟล์</th><th style="width:110px"></th></tr></thead><tbody id="bkBody"></tbody></table></div>
+      <h3 style="margin:14px 0 6px">ประวัติการใช้งานล่าสุด</h3>
+      <div class="card tablecard"><table><thead><tr><th style="width:190px">เวลา</th><th style="width:240px">ผู้ใช้</th><th>การกระทำ</th></tr></thead><tbody id="auBody"></tbody></table></div>
     </div>
 
     <div id="tab-io" class="hidden">
@@ -197,6 +222,7 @@ let uid = 0;
 let vac = [], hol = [], origVac = [], origHol = [];
 let settings = { hospitalName: '', appTitle: '', clinicShort: '' }, origSettings = clone0(settings);
 function clone0(o) { return JSON.parse(JSON.stringify(o)); }
+let rev = { vaccines: 0, holidays: 0, settings: 0 };   // เลขรุ่นของแต่ละส่วนตอนที่โหลดมา — ส่งกลับตอนบันทึก ถ้ามีคนอื่นบันทึกไปก่อน server จะตอบ 409 (ไม่ทับงานของเขา)
 const open = new Set();
 const clone = o => JSON.parse(JSON.stringify(o));
 const key = o => JSON.stringify(o);
@@ -221,10 +247,12 @@ async function api(method, url, body) {
   if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
   return data;
 }
+let flashTimer = null;
 function flash(msg, ok) {
   const box = $('#flash'); box.replaceChildren(h('div', { class: 'msg ' + (ok ? 'ok' : 'err'), role: 'alert' }, msg));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (ok) setTimeout(() => box.replaceChildren(), 5000);
+  clearTimeout(flashTimer); // ตัวนับของข้อความก่อนหน้าต้องไม่มาล้างข้อความใหม่
+  if (ok) flashTimer = setTimeout(() => box.replaceChildren(), 5000);
 }
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -303,6 +331,7 @@ function load(s) {
   vac = withIds(s.vaccines); hol = withIds(s.holidays);
   origVac = clone(vac); origHol = clone(hol);
   if (s.settings) { settings = clone(s.settings); origSettings = clone(s.settings); } // ผลนำเข้า CSV ไม่มี settings → คงค่าเดิม
+  if (s.rev) rev = clone(s.rev);
 }
 async function showApp() {
   load(await api('GET', '/api/admin/store'));
@@ -323,8 +352,58 @@ $('#logoutBtn').addEventListener('click', () => {
 /* ---------- tabs ---------- */
 $$('.tab').forEach(t => t.addEventListener('click', () => {
   $$('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
-  ['vac', 'hol', 'set', 'io'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== t.dataset.tab));
+  ['vac', 'hol', 'set', 'his', 'io'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== t.dataset.tab));
+  if (t.dataset.tab === 'his') loadHistory();
 }));
+
+/* ---------- ประวัติ / คืนค่าจากไฟล์สำรอง ---------- */
+const fmtTs = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+function describeAudit(w) {
+  let m;
+  if ((m = /^save vaccines \((\d+) rows\)$/.exec(w))) return `บันทึกตารางวัคซีน (${m[1]} แถว)`;
+  if ((m = /^save holidays \((\d+) rows\)$/.exec(w))) return `บันทึกวันหยุด (${m[1]} รายการ)`;
+  if ((m = /^save clinic settings \((.*)\)$/.exec(w))) return `บันทึกข้อมูลคลินิก (${m[1]})`;
+  if ((m = /^import CSV: (.*)$/.exec(w))) return `นำเข้า CSV: ${m[1]}`;
+  if ((m = /^restore backup (.*)$/.exec(w))) return `คืนค่าจากไฟล์สำรอง ${m[1]}`;
+  if (w.startsWith('login ok')) return 'เข้าสู่ระบบ';
+  if (w === 'login FAILED') return 'เข้าสู่ระบบไม่สำเร็จ (รหัสผิด)';
+  if (w.startsWith('login blocked')) return 'ถูกบล็อก: ลองรหัสผิดหลายครั้ง';
+  return w;
+}
+async function loadHistory() {
+  const bk = $('#bkBody'), au = $('#auBody');
+  bk.innerHTML = au.innerHTML = '<tr><td colspan="3" class="muted">กำลังโหลด…</td></tr>';
+  try {
+    const d = await api('GET', '/api/admin/history');
+    const last = d.audit.find(a => /^(save|import|restore)/.test(a.what));
+    $('#hisState').textContent = last ? `แก้ไขข้อมูลล่าสุด: ${fmtTs(last.ts)} โดย ${last.who} · คุณคือ ${d.me}` : `คุณคือ ${d.me}`;
+    bk.replaceChildren();
+    d.backups.forEach(b => {
+      const s = b.summary;
+      const tr = h('tr', null,
+        h('td', null, fmtTs(b.ts)),
+        h('td', null, s ? `วัคซีน ${s.vaccines} แถว · วันหยุด ${s.holidays} รายการ · ${s.clinicShort || '—'}${s.updatedBy ? ' · ตั้งไว้โดย ' + s.updatedBy : ''}` : h('span', { class: 'muted' }, '(อ่านสรุปไม่ได้)')),
+        h('td', null, h('button', { onclick: () => restoreBackup(b) }, '↩︎ คืนค่า')));
+      bk.append(tr);
+    });
+    if (!d.backups.length) bk.innerHTML = '<tr><td colspan="3" class="muted">ยังไม่มีไฟล์สำรอง (จะเกิดเมื่อมีการบันทึกครั้งแรก)</td></tr>';
+    au.replaceChildren();
+    d.audit.forEach(a => au.append(h('tr', null, h('td', null, fmtTs(a.ts)), h('td', null, a.who), h('td', null, describeAudit(a.what)))));
+    if (!d.audit.length) au.innerHTML = '<tr><td colspan="3" class="muted">ยังไม่มีประวัติ</td></tr>';
+  } catch (e) { bk.innerHTML = au.innerHTML = ''; flash(e.message); }
+}
+function restoreBackup(b) {
+  if (anyDirty()) return flash('มีการแก้ที่ยังไม่บันทึก กรุณากด "บันทึก" หรือ "ยกเลิกการแก้ทั้งหมด" ก่อนคืนค่า');
+  const s = b.summary;
+  ask('คืนค่าจากไฟล์สำรองนี้ ?', `${fmtTs(b.ts)}${s ? ` · วัคซีน ${s.vaccines} แถว · วันหยุด ${s.holidays} รายการ` : ''} — ข้อมูลปัจจุบันจะถูกสำรองไว้ก่อน แล้วหน้าเว็บของเจ้าหน้าที่จะใช้ข้อมูลชุดนี้ทันที`, 'คืนค่า', async () => {
+    try {
+      const r = await api('POST', '/api/admin/restore', { file: b.file });
+      load(r); renderVac(); renderHol(); renderSettings();
+      flash('คืนค่าเรียบร้อย (ข้อมูลก่อนคืนค่าถูกสำรองไว้แล้ว)', true);
+      loadHistory();
+    } catch (e) { flash(e.message); }
+  });
+}
 
 /* ---------- ตารางวัคซีน ---------- */
 const orderKey = a => a.map(x => x.id).join(',');
@@ -525,14 +604,14 @@ $('#save').addEventListener('click', async () => {
   const b = $('#save'); b.disabled = true;
   const saved = [];
   try {
-    if (vacDirty()) { const r = await api('PUT', '/api/admin/vaccines', { vaccines: vacClean(vac) }); vac = withIds(r.vaccines); origVac = clone(vac); saved.push('ตารางวัคซีน'); }
+    if (vacDirty()) { const r = await api('PUT', '/api/admin/vaccines', { vaccines: vacClean(vac), baseRev: rev.vaccines }); vac = withIds(r.vaccines); origVac = clone(vac); rev = r.rev; saved.push('ตารางวัคซีน'); }
     if (holDirty()) {
       const sorted = holClean(hol).sort((a, c) => a.date.localeCompare(c.date));
-      const r = await api('PUT', '/api/admin/holidays', { holidays: sorted }); hol = withIds(r.holidays); origHol = clone(hol); saved.push('วันหยุด');
+      const r = await api('PUT', '/api/admin/holidays', { holidays: sorted, baseRev: rev.holidays }); hol = withIds(r.holidays); origHol = clone(hol); rev = r.rev; saved.push('วันหยุด');
     }
     if (setDirty()) {
-      const r = await api('PUT', '/api/admin/settings', { settings: { appTitle: settings.appTitle, hospitalName: settings.hospitalName, clinicShort: settings.clinicShort } });
-      settings = clone(r.settings); origSettings = clone(r.settings); saved.push('ข้อมูลคลินิก');
+      const r = await api('PUT', '/api/admin/settings', { settings: { appTitle: settings.appTitle, hospitalName: settings.hospitalName, clinicShort: settings.clinicShort }, baseRev: rev.settings });
+      settings = clone(r.settings); origSettings = clone(r.settings); rev = r.rev; saved.push('ข้อมูลคลินิก');
     }
     renderVac(); renderHol(); renderSettings();
     flash('บันทึกเรียบร้อย: ' + saved.join(', ') + ' (' + new Date().toLocaleTimeString('th-TH') + ')', true);

@@ -1,0 +1,9 @@
+{
+  "name": "wcc-offline-build",
+  "private": true,
+  "description": "เครื่องมือสร้าง CSS (Tailwind) และฟอนต์ที่ฝังใน index.html เพื่อให้ใช้ได้โดยไม่ต้องมีอินเทอร์เน็ต — ใช้เฉพาะตอนแก้หน้าตา ไม่เกี่ยวกับตัวแอปที่รันบน server",
+  "devDependencies": {
+    "@fontsource/sarabun": "5.1.0",
+    "tailwindcss": "3.4.17"
+  }
+}
