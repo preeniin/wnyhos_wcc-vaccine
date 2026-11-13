@@ -27,7 +27,7 @@ fs.mkdirSync(BACKUPS, { recursive: true, mode: 0o700 });
 function seedStore() {
   const v = L.parseVaccinesCsv(fs.readFileSync(path.join(ROOT, 'seed', 'vaccines.csv'), 'utf8'));
   const h = L.parseHolidaysCsv(fs.readFileSync(path.join(ROOT, 'seed', 'holidays.csv'), 'utf8'));
-  return { version: 1, updatedAt: new Date().toISOString(), vaccines: v, holidays: h };
+  return { version: 1, updatedAt: new Date().toISOString(), vaccines: v, holidays: h, settings: Object.assign({}, L.DEFAULT_SETTINGS) };
 }
 function writeAtomic(file, text, mode) {
   const tmp = file + '.tmp-' + process.pid;
@@ -36,7 +36,10 @@ function writeAtomic(file, text, mode) {
 }
 function loadStore() {
   if (!fs.existsSync(STORE)) { const s = seedStore(); writeAtomic(STORE, JSON.stringify(s, null, 2)); audit('system', 'seed from bundled CSV'); return s; }
-  return JSON.parse(fs.readFileSync(STORE, 'utf8'));
+  const s = JSON.parse(fs.readFileSync(STORE, 'utf8'));
+  // store.json รุ่นเก่า (ก่อนมีข้อมูลคลินิก) ไม่มี settings → เติมค่าตั้งต้น (ไม่ทับของที่มีอยู่)
+  s.settings = Object.assign({}, L.DEFAULT_SETTINGS, s.settings || {});
+  return s;
 }
 function saveStore(next, what) {
   if (fs.existsSync(STORE)) {
@@ -150,6 +153,7 @@ const server = http.createServer(async (req, res) => {
     if (m === 'GET' && (p === '/' || p === '/index.html')) return serveFile(res, path.join(WEB_DIR, 'index.html'), 'text/html; charset=utf-8');
     if (m === 'GET' && p === '/pcv-rules.js') return serveFile(res, path.join(WEB_DIR, 'pcv-rules.js'), 'application/javascript; charset=utf-8');
     if (m === 'GET' && p === '/data/vaccines.csv') return send(res, 200, L.vaccinesToCsv(store.vaccines), 'text/csv; charset=utf-8');
+    if (m === 'GET' && p === '/data/settings.json') return send(res, 200, JSON.stringify(store.settings), 'application/json; charset=utf-8');
     if (m === 'GET' && p === '/data/holidays.csv') return send(res, 200, L.holidaysToCsv(store.holidays), 'text/csv; charset=utf-8');
     if (m === 'GET' && (p === '/admin' || p === '/admin/' || p === '/admin.html')) {
       return serveFile(res, path.join(WEB_DIR, 'admin.html'), 'text/html; charset=utf-8', { 'Content-Security-Policy': ADMIN_CSP, 'X-Frame-Options': 'DENY' });
@@ -187,7 +191,13 @@ const server = http.createServer(async (req, res) => {
     // --- admin (ต้อง login) ---
     if (p.startsWith('/api/admin/')) {
       if (!isAdmin(req)) return json(res, 401, { error: 'กรุณาเข้าสู่ระบบ' });
-      if (m === 'GET' && p === '/api/admin/store') return json(res, 200, { vaccines: store.vaccines, holidays: store.holidays, updatedAt: store.updatedAt });
+      if (m === 'GET' && p === '/api/admin/store') return json(res, 200, { vaccines: store.vaccines, holidays: store.holidays, settings: store.settings, updatedAt: store.updatedAt });
+      if (m === 'PUT' && p === '/api/admin/settings') {
+        const b = await readBody(req);
+        const s = L.validateSettings(b.settings);
+        saveStore(Object.assign({}, store, { settings: s }), `save clinic settings (${s.clinicShort})`);
+        return json(res, 200, { ok: true, settings: store.settings, updatedAt: store.updatedAt });
+      }
       if (m === 'PUT' && p === '/api/admin/vaccines') {
         const b = await readBody(req);
         const v = L.validateVaccines(b.vaccines);

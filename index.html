@@ -277,7 +277,7 @@
    <div class="max-w-5xl mx-auto">
     <div class="text-center mb-3">
      <div class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-full bg-white bg-opacity-20 rounded-2xl md:rounded-full px-3 md:px-4 py-1.5 shadow-sm">
-      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 51 · 3 พ.ย. 2569 16:43 (PCV: เด็กอยู่ในช่วงอายุของรอบ = ฉีดวันนี้พร้อมรอบ, แก้แถว PCV ซ้ำ, เตือนล่าช้ามาก และอายุ/เข็มที่ตก ≥ 24 เดือน)</span>
+      <span class="text-white text-[11px] md:text-xs font-bold tracking-wide">✨ เวอร์ชัน 52 · 13 พ.ย. 2569 15:08 (ตั้งชื่อระบบ/ชื่อ รพ./ชื่อย่อคลินิกจากหน้าแอดมิน, หน้าแอดมินใหม่)</span>
       <span class="text-teal-100 text-[11px] md:text-xs md:border-l md:border-teal-300 md:pl-2" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span>
      </div>
     </div>
@@ -293,8 +293,8 @@
        </svg>
       </div>
       <div class="min-w-0">
-       <h1 class="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-white drop-shadow-sm leading-tight">ระบบนัดหมายวัคซีน WCC</h1>
-       <p class="text-teal-100 text-xs sm:text-sm font-medium">โรงพยาบาลวังน้ำเย็น</p>
+       <h1 class="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-white drop-shadow-sm leading-tight" id="appTitle">ระบบนัดหมายวัคซีน WCC</h1>
+       <p class="text-teal-100 text-xs sm:text-sm font-medium" id="hospitalName">โรงพยาบาลวังน้ำเย็น</p>
       </div>
      </div>
      <div class="text-right hidden md:block">
@@ -482,7 +482,7 @@
     <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 border-t-8 border-green-500">
         <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 flex items-center">
             <svg class="w-7 h-7 md:w-8 md:h-8 text-green-600 mr-2 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg> 
-            แผนการฉีดวัคซีน (WCC Schedule)
+            แผนการฉีดวัคซีน (<span data-clinic-short>WCC</span> Schedule)
         </h2>
         <p class="text-sm text-gray-600 mb-8 border-b pb-4 font-medium">ตารางวัคซีนอ้างอิง ข้อมูลซิงค์โดยตรงจากฐานข้อมูล Google Sheets</p>
         
@@ -496,7 +496,7 @@
     <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 border-t-8 border-red-500">
         <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-6 flex flex-wrap items-center gap-y-1 border-b pb-4">
             <svg class="w-7 h-7 md:w-8 md:h-8 text-red-500 mr-2 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z" clip-rule="evenodd" /></svg> 
-            ฐานข้อมูลวันหยุด WCC <span id="holidayRangeLabel" class="ml-2 text-base font-bold text-gray-500"></span>
+            ฐานข้อมูลวันหยุด <span data-clinic-short>WCC</span> <span id="holidayRangeLabel" class="ml-2 text-base font-bold text-gray-500"></span>
         </h2>
         
         <div id="holidayListContent">
@@ -840,7 +840,33 @@
          *    (กันปัญหาเครื่องหลายเครื่องเปิดพร้อมกันแล้วต้องรอ Google Sheets ตอบพร้อมกัน)
          * 2) แล้วค่อยยิงขอข้อมูลสดจาก Google Sheets คู่ขนานอยู่เบื้องหลังเพื่ออัปเดตให้ล่าสุด
          */
+        /**
+         * ข้อมูลคลินิก (ชื่อระบบ / ชื่อ รพ. / ชื่อย่อคลินิก) — อ่านจาก server (/data/settings.json) ที่แอดมินตั้งไว้
+         * ถ้าไม่มีไฟล์นี้ (เช่น GitHub Pages ที่ไม่มี server) หรือเชื่อมต่อไม่ได้ ก็ใช้ค่าที่ฝังใน HTML ตามเดิม ไม่กระทบการใช้งาน
+         * ใช้ textContent เท่านั้น (ไม่ใช้ innerHTML) กันข้อความแปลกปลอม
+         */
+        let CLINIC_SHORT = 'WCC';
+        async function applyClinicSettings() {
+            try {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 4000);
+                const r = await fetch('./data/settings.json', { cache: 'no-cache', signal: ctrl.signal });
+                clearTimeout(timer);
+                if (!r.ok) return;
+                const s = await r.json();
+                const has = k => typeof s[k] === 'string' && s[k].trim();
+                if (has('appTitle')) document.getElementById('appTitle').textContent = s.appTitle;
+                if (has('hospitalName')) document.getElementById('hospitalName').textContent = s.hospitalName;
+                if (has('clinicShort')) {
+                    CLINIC_SHORT = s.clinicShort;
+                    document.querySelectorAll('[data-clinic-short]').forEach(el => { el.textContent = CLINIC_SHORT; });
+                }
+                if (has('appTitle') && has('hospitalName')) document.title = s.appTitle + ' - ' + s.hospitalName;
+            } catch (e) { /* ใช้ค่าที่ฝังไว้ */ }
+        }
+
         async function initSystem() {
+            applyClinicSettings(); // ไม่รอ: ไม่ให้การโหลดหลักช้าลง ถ้าไม่มี/ช้า หน้าเว็บใช้ค่าที่ฝังไว้
             const cachedHolidays = safeStorageGet('wcc_holidays_csv');
             const cachedVaccines = safeStorageGet('wcc_vaccines_csv');
             const hadCache = !!(cachedHolidays && cachedVaccines);
@@ -1276,7 +1302,7 @@
             if (code && vaccineSchedules[code]) {
                 // เกินเกณฑ์ WCC ปกติ — ยังฉีดเข็มกระตุ้นได้ แต่ต้องตรวจประวัติก่อน
                 const overAgeWarn = totalMonths >= AGE_WARN_MONTHS
-                    ? `<div class="mt-2 bg-amber-100 border border-amber-400 text-amber-900 text-xs font-bold p-2 rounded flex items-start"><span class="mr-1">⚠️</span><span>อายุเกิน ${AGE_WARN_MONTHS / 12} ปี — เกินเกณฑ์ WCC ปกติ ตรวจสอบประวัติวัคซีน / พิจารณาส่งต่อ</span></div>`
+                    ? `<div class="mt-2 bg-amber-100 border border-amber-400 text-amber-900 text-xs font-bold p-2 rounded flex items-start"><span class="mr-1">⚠️</span><span>อายุเกิน ${AGE_WARN_MONTHS / 12} ปี — เกินเกณฑ์ ${CLINIC_SHORT} ปกติ ตรวจสอบประวัติวัคซีน / พิจารณาส่งต่อ</span></div>`
                     : '';
                 buildCurrentVaccineModalCard(code, "✅ ต้องฉีด \"วันนี้\"", overAgeWarn);
                 buildNextAppointmentModalCard(code, vDate, bDate, 'normal');

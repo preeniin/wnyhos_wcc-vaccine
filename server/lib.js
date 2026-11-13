@@ -154,7 +154,19 @@ function parseHolidaysCsv(text) {
   return validateHolidays(parsed);
 }
 
+// ---------- ข้อมูลคลินิก (แสดงบนหน้าเว็บ) ----------
+// ค่าตั้งต้น = ค่าที่เคยฝังใน index.html — หน้าเว็บมีค่าเดียวกันฝังไว้เป็น fallback เสมอ (เช่น GitHub Pages ที่ไม่มี server)
+const DEFAULT_SETTINGS = { hospitalName: 'โรงพยาบาลวังน้ำเย็น', appTitle: 'ระบบนัดหมายวัคซีน WCC', clinicShort: 'WCC' };
+function validateSettings(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ValidationError('settings: รูปแบบไม่ถูกต้อง');
+  return {
+    hospitalName: str(input.hospitalName, 'ชื่อโรงพยาบาล', 80, { allowEmpty: false }),
+    appTitle: str(input.appTitle, 'ชื่อระบบ (หัวหน้าเว็บ)', 80, { allowEmpty: false }),
+    clinicShort: str(input.clinicShort, 'ชื่อย่อคลินิก', 20, { allowEmpty: false }),
+  };
+}
+
 module.exports = {
-  ValidationError, validateVaccines, validateHolidays,
+  ValidationError, validateVaccines, validateHolidays, validateSettings, DEFAULT_SETTINGS,
   vaccinesToCsv, holidaysToCsv, parseVaccinesCsv, parseHolidaysCsv, parseCsvRow,
 };

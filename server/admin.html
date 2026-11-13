@@ -6,46 +6,105 @@
 <meta name="robots" content="noindex, nofollow">
 <title>ตั้งค่า WCC Vaccine</title>
 <style>
-  :root { --bg:#f4f7f6; --card:#fff; --ink:#1b2b27; --muted:#5c6f69; --line:#d5dfdb; --brand:#0f766e; --brand-d:#0b5c56; --danger:#b42318; --warn:#fff4d6; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#10191a; --card:#18262a; --ink:#e6f0ed; --muted:#9db3ad; --line:#2c4147; --brand:#2bb3a6; --brand-d:#4fd1c5; --danger:#ff8a80; --warn:#3a3217; } }
-  * { box-sizing: border-box; }
+  :root { --bg:#f4f7f6; --card:#fff; --ink:#1b2b27; --muted:#5c6f69; --line:#d5dfdb; --brand:#0f766e; --brand-d:#0b5c56; --brand-soft:#e3f3f0; --danger:#b42318; --danger-soft:#fde7e5; --warn:#fff4d6; --warn-ink:#7a5a00; --inj:#0b5cad; --inj-soft:#e3effc; --oral:#8a4b08; --oral-soft:#fdeedb; --ok-soft:#dff5ee; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#10191a; --card:#18262a; --ink:#e6f0ed; --muted:#9db3ad; --line:#2c4147; --brand:#2bb3a6; --brand-d:#4fd1c5; --brand-soft:#16403d; --danger:#ff8a80; --danger-soft:#3d1d1a; --warn:#3a3217; --warn-ink:#f0d98a; --inj:#8ec1ff; --inj-soft:#16304d; --oral:#ffc27a; --oral-soft:#4a3018; --ok-soft:#173d33; } }
+  * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, "Sarabun", "Noto Sans Thai", sans-serif; }
-  header { background:var(--brand); color:#fff; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+  header { background:var(--brand); color:#fff; padding:10px 16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:20; }
   header h1 { margin:0; font-size:18px; }
-  main { max-width:1100px; margin:0 auto; padding:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
-  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
-  .tab { border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; cursor:pointer; font:inherit; }
-  .tab[aria-selected="true"] { background:var(--brand); color:#fff; border-color:var(--brand); }
+  header a { color:#fff; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:13px; background:rgba(255,255,255,.18); }
+  .pill.dirty { background:#ffd166; color:#4a3500; font-weight:600; }
+  main { max-width:1100px; margin:0 auto; padding:16px 16px 110px; }
   button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:6px 12px; }
+  button:hover:not(:disabled) { border-color:var(--brand); }
   button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
-  button.primary:hover { background:var(--brand-d); }
+  button.primary:hover:not(:disabled) { background:var(--brand-d); }
   button.danger { color:var(--danger); border-color:var(--danger); }
-  button:disabled { opacity:.5; cursor:not-allowed; }
-  input, select, textarea { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 8px; width:100%; }
-  label { font-size:12px; color:var(--muted); display:block; margin-bottom:2px; }
-  .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .vrow { display:grid; gap:6px; grid-template-columns: 2fr 2fr 1fr auto; align-items:end; margin-top:6px; }
-  .weeks { display:flex; gap:6px; flex-wrap:wrap; }
-  .weeks label { display:flex; gap:4px; align-items:center; color:var(--ink); font-size:14px; border:1px solid var(--line); border-radius:8px; padding:4px 8px; margin:0; }
-  .weeks input { width:auto; }
+  button.ghost { border-color:rgba(255,255,255,.5); background:transparent; color:#fff; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  input, select { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 8px; width:100%; }
+  input:focus, select:focus, button:focus-visible { outline:2px solid var(--brand); outline-offset:1px; }
+  label.l { font-size:12px; color:var(--muted); display:block; margin-bottom:2px; }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tab { border-radius:999px; padding:8px 14px; display:flex; gap:6px; align-items:center; }
+  .tab[aria-selected="true"] { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .dot { width:8px; height:8px; border-radius:50%; background:#ffb703; display:none; }
+  .tab.has-dirty .dot { display:inline-block; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .note { background:var(--warn); color:var(--warn-ink); border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:12px; }
   .msg { padding:10px 12px; border-radius:8px; margin-bottom:12px; }
   .msg.err { background:#fde7e5; color:#7a1710; border:1px solid #f4b4ad; }
   .msg.ok { background:#dff5ee; color:#0b4a3d; border:1px solid #9fdcc9; }
-  .note { background:var(--warn); border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:12px; }
-  .stickybar { position:sticky; bottom:0; background:var(--bg); padding:10px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); }
+  .issues { background:var(--danger-soft); border:1px solid var(--danger); border-radius:10px; padding:10px 14px; margin-bottom:12px; }
+  .issues.ok { background:var(--ok-soft); border-color:var(--brand); }
+  .issues ul { margin:6px 0 0; padding-left:20px; }
+  .issues li button { border:none; background:none; color:inherit; text-decoration:underline; padding:0; text-align:left; }
+  .vhead, .sum { display:grid; grid-template-columns:56px 130px 1fr 120px 90px 90px 44px; gap:8px; align-items:center; }
+  .grip { display:inline-block; cursor:grab; user-select:none; color:var(--muted); font-size:18px; line-height:1; padding:4px 6px 4px 0; border-radius:6px; }
+  .grip:hover { color:var(--brand); }
+  .grip:active { cursor:grabbing; }
+  .vrowbox.dragging { opacity:.4; }
+  .vrowbox.drop-before { box-shadow:0 -4px 0 0 var(--brand); }
+  .vrowbox.drop-after { box-shadow:0 4px 0 0 var(--brand); }
+  .vhead { font-size:12px; color:var(--muted); padding:0 12px 6px; }
+  .vrowbox { background:var(--card); border:1px solid var(--line); border-radius:12px; margin-bottom:8px; overflow:hidden; }
+  .vrowbox.dirty { border-left:4px solid #ffb703; }
+  .vrowbox.bad { border-color:var(--danger); border-left:4px solid var(--danger); }
+  .vrowbox.open { box-shadow:0 2px 12px rgba(0,0,0,.08); }
+  .sum { padding:10px 12px; cursor:pointer; }
+  .sum:hover { background:var(--brand-soft); }
+  .idx { color:var(--muted); font-size:13px; }
+  .age b { display:block; }
+  .age span { font-size:12px; color:var(--muted); }
+  .chip { display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px; margin:1px 3px 1px 0; white-space:nowrap; }
+  .chip.injection { background:var(--inj-soft); color:var(--inj); }
+  .chip.oral { background:var(--oral-soft); color:var(--oral); }
+  .chip.pcv { outline:1px solid var(--brand); }
+  .wk span { display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; border-radius:50%; font-size:12px; margin-right:2px; background:var(--bg); color:var(--muted); }
+  .wk span.on { background:var(--brand); color:#fff; }
+  .acts { display:flex; gap:4px; justify-content:flex-end; }
+  .acts button { padding:2px 8px; }
+  .ed { display:none; padding:4px 14px 14px; border-top:1px solid var(--line); }
+  .vrowbox.open .ed { display:block; }
+  .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); margin-top:10px; }
+  .weeks { display:flex; gap:6px; flex-wrap:wrap; }
+  .weeks label { display:flex; gap:4px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:4px 10px; cursor:pointer; margin:0; font-size:14px; color:var(--ink); }
+  .weeks input { width:auto; }
+  .weeks label.on { background:var(--brand-soft); border-color:var(--brand); }
+  .vac3 { display:grid; grid-template-columns:2fr 2fr 1fr auto; gap:6px; margin-top:6px; align-items:end; }
   table { width:100%; border-collapse:collapse; }
-  td, th { padding:4px; text-align:left; vertical-align:middle; }
+  th { font-size:12px; color:var(--muted); text-align:left; padding:4px; }
+  td { padding:4px; vertical-align:middle; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .tag.wed { background:var(--danger-soft); color:var(--danger); }
+  .tag.other { background:var(--bg); color:var(--muted); }
+  .tag.cancel { background:var(--ok-soft); color:var(--brand); }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:10px 16px; z-index:15; }
+  .bar .in { max-width:1100px; margin:0 auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .bar .sp { flex:1; }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .modal { background:var(--card); border-radius:14px; padding:18px; max-width:420px; width:100%; }
+  .modal .row2 { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .hidden { display:none !important; }
   .muted { color:var(--muted); font-size:13px; }
-  @media (max-width:640px) { .vrow { grid-template-columns:1fr 1fr; } }
+  @media (max-width:760px) {
+    .vhead { display:none; }
+    .sum { grid-template-columns:56px 1fr auto; }
+    .sum .c-vac, .sum .c-wk, .sum .c-time, .sum .c-next { grid-column:2 / 4; }
+    .vac3 { grid-template-columns:1fr 1fr; }
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>⚙️ ตั้งค่า WCC Vaccine</h1>
-  <div class="row"><a href="/" style="color:#fff">← กลับหน้าคำนวณนัด</a><button id="logoutBtn" class="hidden">ออกจากระบบ</button></div>
+  <div class="row">
+    <span id="statePill" class="pill hidden">✓ บันทึกล่าสุดแล้ว</span>
+    <a href="/">← กลับหน้าคำนวณนัด</a>
+    <button id="logoutBtn" class="ghost hidden">ออกจากระบบ</button>
+  </div>
 </header>
 <main>
   <div id="flash"></div>
@@ -54,39 +113,53 @@
   <section id="loginView" class="card hidden" style="max-width:420px;margin:40px auto">
     <h2 style="margin-top:0">เข้าสู่ระบบแอดมิน</h2>
     <form id="loginForm">
-      <label for="pw">รหัสผ่าน</label>
+      <label class="l" for="pw">รหัสผ่าน</label>
       <input id="pw" type="password" autocomplete="current-password" required>
       <div style="margin-top:12px"><button class="primary" type="submit">เข้าสู่ระบบ</button></div>
     </form>
-    <p id="noPw" class="note hidden" style="margin-top:12px">ยังไม่ได้ตั้งรหัสผ่านบน server — ให้ผู้ดูแลรัน <b>node set-password.js</b> บนเครื่อง server ก่อน</p>
+    <p id="noPw" class="note hidden" style="margin-top:12px">ยังไม่ได้ตั้งรหัสผ่านบน server — ให้ผู้ดูแลตั้งรหัสแอดมินบนเครื่อง server ก่อน</p>
   </section>
 
   <!-- ส่วนตั้งค่า -->
   <section id="appView" class="hidden">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="vac" aria-selected="true">💉 ตารางวัคซีน</button>
-      <button class="tab" role="tab" data-tab="hol" aria-selected="false">📅 วันหยุด / วันยกเลิก</button>
+      <button class="tab" role="tab" data-tab="vac" aria-selected="true">💉 ตารางวัคซีน <span class="dot"></span></button>
+      <button class="tab" role="tab" data-tab="hol" aria-selected="false">📅 วันหยุด / วันยกเลิก <span class="dot"></span></button>
+      <button class="tab" role="tab" data-tab="set" aria-selected="false">🏥 ข้อมูลคลินิก <span class="dot"></span></button>
       <button class="tab" role="tab" data-tab="io" aria-selected="false">📦 นำเข้า / ส่งออก CSV</button>
     </div>
 
     <div id="tab-vac">
-      <div class="note">ลำดับแถวสำคัญ: หน้าเว็บแสดงตามลำดับนี้ และ "อายุถัดไป" ใช้คำนวณวันนัดครั้งต่อไป · แก้เสร็จต้องกด <b>บันทึก</b> หน้าเว็บของเจ้าหน้าที่จะได้ข้อมูลใหม่เมื่อรีเฟรช</div>
+      <div class="note">ลำดับแถวสำคัญ: หน้าเว็บแสดงตามลำดับนี้ และ "อายุถัดไป" ใช้คำนวณวันนัดครั้งต่อไป · <b>ลากที่จุด ⠿ เพื่อเรียงลำดับ</b> · กดแถวเพื่อแก้ · แถบสีเหลืองข้างแถว = แก้แล้วแต่ยังไม่บันทึก · แก้เสร็จต้องกด <b>บันทึก</b> หน้าเว็บของเจ้าหน้าที่จะได้ข้อมูลใหม่เมื่อรีเฟรช</div>
+      <div id="vacIssues"></div>
+      <div class="vhead"><span>#</span><span>ช่วงอายุ</span><span>วัคซีน</span><span>สัปดาห์ (พุธ)</span><span>เวลา</span><span>อายุถัดไป</span><span></span></div>
       <div id="vacList"></div>
-      <div class="stickybar">
-        <button id="addVac">+ เพิ่มช่วงอายุ</button>
-        <button id="saveVac" class="primary">💾 บันทึกตารางวัคซีน</button>
-        <span id="vacState" class="muted"></span>
-      </div>
+      <button id="addVac">+ เพิ่มช่วงอายุ</button>
     </div>
 
     <div id="tab-hol" class="hidden">
-      <div class="note">ใส่วันที่เป็น <b>ค.ศ.</b> · ชื่อ <b>"ยกเลิก"</b> = ยกเลิกวันหยุดนั้น (เช่น วันหยุดที่ระบบคำนวณเองแต่คลินิกเปิดจริง) · ชื่ออื่น = เพิ่มวันหยุด/ชดเชย</div>
-      <div class="card"><table id="holTable"><thead><tr><th style="width:190px">วันที่ (ค.ศ.)</th><th>ชื่อ</th><th style="width:80px"></th></tr></thead><tbody></tbody></table></div>
-      <div class="stickybar">
-        <button id="addHol">+ เพิ่มวัน</button>
-        <button id="saveHol" class="primary">💾 บันทึกวันหยุด</button>
-        <span id="holState" class="muted"></span>
+      <div class="note">กรอกวันที่เป็น <b>พ.ศ.</b> รูปแบบ <b>วว/ดด/พ.ศ.</b> (เช่น 10/12/2569) · ชื่อ <b>"ยกเลิก"</b> = ยกเลิกวันหยุดนั้น (เช่น วันหยุดที่ระบบคำนวณเองแต่คลินิกเปิดจริง) (ใส่แถว "ยกเลิก" วันที่เดียวกับวันหยุดนั้น วันที่ซ้ำกันได้ และ "ยกเลิก" ชนะเสมอ) · ชื่ออื่น = เพิ่มวันหยุด/ชดเชย · คลินิกให้บริการวันพุธ วันหยุดที่ตรงวันพุธเท่านั้นที่กระทบการนัด</div>
+      <div id="holIssues"></div>
+      <div class="card"><table><thead><tr><th style="width:170px">วันที่ (พ.ศ.)</th><th style="width:110px">วัน</th><th>ชื่อ</th><th style="width:170px">ผลต่อการนัด</th><th style="width:70px"></th></tr></thead><tbody id="holBody"></tbody></table></div>
+      <button id="addHol">+ เพิ่มวัน</button>
+    </div>
+
+    <div id="tab-set" class="hidden">
+      <div class="note">ข้อความเหล่านี้แสดงบนหัวเว็บของเจ้าหน้าที่ (ชื่อระบบ, ชื่อ รพ.) และในหัวข้อบางจุด (ชื่อย่อคลินิก) · แก้เสร็จต้องกด <b>บันทึก</b> หน้าเว็บจะเปลี่ยนเมื่อรีเฟรช · ถ้าเปิดเว็บจากที่อื่นที่ไม่มี server นี้ (เช่น สำเนาบน GitHub Pages) จะใช้ข้อความตั้งต้นเดิม</div>
+      <div id="setIssues"></div>
+      <div class="card">
+        <div class="grid" style="margin-top:0">
+          <div><label class="l" for="setApp">ชื่อระบบ (หัวเว็บ)</label><input id="setApp" maxlength="80" autocomplete="off"></div>
+          <div><label class="l" for="setHosp">ชื่อโรงพยาบาล</label><input id="setHosp" maxlength="80" autocomplete="off"></div>
+          <div><label class="l" for="setShort">ชื่อย่อคลินิก (เช่น WCC)</label><input id="setShort" maxlength="20" autocomplete="off"></div>
+        </div>
       </div>
+      <label class="l">ตัวอย่างหัวเว็บ</label>
+      <div class="card" style="background:var(--brand);color:#fff;margin-top:2px">
+        <div id="prevApp" style="font-size:20px;font-weight:800;line-height:1.3"></div>
+        <div id="prevHosp" style="opacity:.85;font-size:14px"></div>
+      </div>
+      <div class="muted">ชื่อย่อจะแสดงใน: "แผนการฉีดวัคซีน (<b id="prevShort1"></b> Schedule)", "ฐานข้อมูลวันหยุด <b id="prevShort2"></b>" และคำเตือนอายุเกินเกณฑ์</div>
     </div>
 
     <div id="tab-io" class="hidden">
@@ -98,8 +171,8 @@
         <h3 style="margin-top:0">นำเข้า CSV (แทนที่ข้อมูลส่วนนั้นทั้งหมด)</h3>
         <p class="muted">รูปแบบเดียวกับไฟล์ที่ส่งออก/จาก Google Sheets เดิม · ระบบสำรองข้อมูลก่อนบันทึกให้อัตโนมัติ (เก็บ 50 ครั้งล่าสุดบน server)</p>
         <div class="grid">
-          <div><label>vaccines.csv</label><input type="file" id="fileVac" accept=".csv,text/csv"></div>
-          <div><label>holidays.csv</label><input type="file" id="fileHol" accept=".csv,text/csv"></div>
+          <div><label class="l">vaccines.csv</label><input type="file" id="fileVac" accept=".csv,text/csv"></div>
+          <div><label class="l">holidays.csv</label><input type="file" id="fileHol" accept=".csv,text/csv"></div>
         </div>
         <div style="margin-top:12px"><button id="importBtn" class="primary">นำเข้า</button></div>
       </div>
@@ -107,22 +180,36 @@
   </section>
 </main>
 
+<div id="bar" class="bar hidden"><div class="in">
+  <span id="barMsg" class="muted">ไม่มีการแก้ที่ยังไม่บันทึก</span>
+  <span class="sp"></span>
+  <button id="discard" disabled>↩︎ ยกเลิกการแก้ทั้งหมด</button>
+  <button id="save" class="primary" disabled>💾 บันทึก</button>
+</div></div>
+
+<div id="mbg" class="modal-bg"><div class="modal" role="dialog" aria-modal="true"><b id="mTitle"></b><p id="mBody" class="muted"></p><div class="row2"><button id="mNo">ยกเลิก</button><button id="mYes" class="danger"></button></div></div></div>
+
 <script>
 'use strict';
-const $ = s => document.querySelector(s);
-const state = { vaccines: [], holidays: [] };
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+let uid = 0;
+let vac = [], hol = [], origVac = [], origHol = [];
+let settings = { hospitalName: '', appTitle: '', clinicShort: '' }, origSettings = clone0(settings);
+function clone0(o) { return JSON.parse(JSON.stringify(o)); }
+const open = new Set();
+const clone = o => JSON.parse(JSON.stringify(o));
+const key = o => JSON.stringify(o);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const BAD = /[<>"`\\\r\n]/;               // ตรงกับที่ server ไม่อนุญาต
+const BAD_ITEM = /[<>"`\\\r\n/|]/;        // ชื่อวัคซีนห้าม / และ | เพิ่ม
 
-function h(tag, attrs, ...kids) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === 'class') el.className = v;
-    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (v === true) el.setAttribute(k, '');
-    else if (v !== false && v != null) el.setAttribute(k, v);
-  }
-  kids.flat().forEach(c => { if (c != null) el.append(c.nodeType ? c : document.createTextNode(String(c))); });
-  return el;
-}
+/* ---------- ข้อมูลที่ส่ง/รับกับ server (ตัด id ฝั่งหน้าจอออกก่อนส่ง) ---------- */
+const withIds = a => a.map(x => Object.assign({ id: ++uid }, clone(x)));
+const strip = a => a.map(x => { const c = clone(x); delete c.id; delete c.txt; return c; });
+const vacClean = a => strip(a);
+const holClean = a => strip(a).map(h => ({ date: h.date, name: h.name }));
+
 async function api(method, url, body) {
   const r = await fetch(url, {
     method, credentials: 'same-origin',
@@ -139,128 +226,343 @@ function flash(msg, ok) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (ok) setTimeout(() => box.replaceChildren(), 5000);
 }
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, '');
+    else if (v !== false && v != null) el.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => { if (c != null) el.append(c.nodeType ? c : document.createTextNode(String(c))); });
+  return el;
+}
+function ask(title, body, yes, fn) {
+  $('#mTitle').textContent = title; $('#mBody').textContent = body; $('#mYes').textContent = yes; $('#mbg').style.display = 'flex';
+  $('#mNo').onclick = () => { $('#mbg').style.display = 'none'; };
+  $('#mYes').onclick = () => { $('#mbg').style.display = 'none'; fn(); };
+}
 
-// ---------- login ----------
+/* ---------- พ.ศ. / วันในสัปดาห์ ---------- */
+const toBE = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${+m[1] + 543}` : (iso || ''); };
+function fromBE(txt) {
+  const m = /^\s*(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{4})\s*$/.exec(txt || ''); if (!m) return null;
+  const d = +m[1], mo = +m[2], y = +m[3] - 543, dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+const dow = iso => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(iso + 'T00:00:00Z').getUTCDay() : -1);
+
+/* ---------- ตรวจข้อมูลก่อนบันทึก (ตรงกับกติกาของ server) ---------- */
+function vacIssues() {
+  const out = [], seen = {};
+  vac.forEach((r, i) => {
+    const t = `#${i + 1} ${r.name || '(ยังไม่ตั้งชื่อ)'}`, add = m => out.push({ id: r.id, msg: `${t}: ${m}` });
+    if (!r.code.trim()) add('ยังไม่ได้ใส่รหัสอายุ');
+    else if (!/^[A-Za-z0-9_-]+$/.test(r.code)) add('รหัสอายุใช้ได้เฉพาะ a-z 0-9 _ -');
+    else if (seen[r.code]) add(`รหัสอายุ "${r.code}" ซ้ำกับแถวอื่น`); else seen[r.code] = 1;
+    if (!r.name.trim()) add('ยังไม่ได้ใส่ชื่ออายุที่แสดง');
+    if (!r.weeks.length) add('ไม่ได้เลือกสัปดาห์ที่เปิดให้บริการ');
+    if (!r.vaccines.some(v => v.name.trim())) add('ไม่มีวัคซีนในช่วงอายุนี้');
+    r.vaccines.forEach(v => { if (BAD_ITEM.test(v.name) || BAD_ITEM.test(v.thai)) add('ชื่อวัคซีนมีอักขระที่ไม่อนุญาต (< > " ` \\ / |)'); });
+    [r.name, r.time, r.schedule, r.special].forEach(x => { if (BAD.test(x || '')) add('มีอักขระที่ไม่อนุญาต (< > " ` \\)'); });
+    if (r.nextAge && r.nextAge === r.code) add('อายุถัดไปห้ามเป็นรหัสตัวเอง');
+    else if (r.nextAge && !vac.some(x => x.code === r.nextAge)) add(`"อายุถัดไป" ชี้ไปรหัส "${r.nextAge}" ที่ไม่มีในตาราง`);
+  });
+  return [...new Map(out.map(o => [o.id + o.msg, o])).values()];
+}
+function holIssues() {
+  const out = [];
+  hol.forEach((r, i) => {
+    const add = m => out.push({ id: r.id, msg: `แถว ${i + 1}: ${m}` });
+    if (!r.date) add('วันที่ไม่ถูกต้อง (ใช้ วว/ดด/พ.ศ. เช่น 10/12/2569)');
+    else if (+r.date.slice(0, 4) < 2020 || +r.date.slice(0, 4) > 2100) add('ปีต้องอยู่ระหว่าง พ.ศ. 2563–2643');
+    // วันที่ซ้ำได้ (ปกติ): แถว "ยกเลิก" วันเดียวกับวันหยุดคือวิธียกเลิกวันหยุด และ "ยกเลิก" ชนะเสมอ
+    if (!r.name.trim()) add('ยังไม่ได้ใส่ชื่อ');
+    else if (BAD.test(r.name)) add('ชื่อมีอักขระที่ไม่อนุญาต (< > " ` \\)');
+  });
+  return out;
+}
+function renderIssues(el, list, onJump) {
+  const box = h('div', { class: 'issues' + (list.length ? '' : ' ok') });
+  if (!list.length) box.textContent = '✓ ข้อมูลครบถ้วน พร้อมบันทึก';
+  else {
+    box.append(h('b', null, `⚠️ พบ ${list.length} จุดที่ต้องแก้ก่อนบันทึก`));
+    box.append(h('ul', null, list.map(it => h('li', null, h('button', { onclick: () => onJump(it.id) }, it.msg)))));
+  }
+  el.replaceChildren(box);
+}
+
+/* ---------- login ---------- */
 function showLogin(passwordSet) {
-  $('#appView').classList.add('hidden'); $('#logoutBtn').classList.add('hidden');
+  $('#appView').classList.add('hidden'); $('#logoutBtn').classList.add('hidden'); $('#bar').classList.add('hidden'); $('#statePill').classList.add('hidden');
   $('#loginView').classList.remove('hidden');
   if (passwordSet === false) $('#noPw').classList.remove('hidden');
 }
+function load(s) {
+  vac = withIds(s.vaccines); hol = withIds(s.holidays);
+  origVac = clone(vac); origHol = clone(hol);
+  if (s.settings) { settings = clone(s.settings); origSettings = clone(s.settings); } // ผลนำเข้า CSV ไม่มี settings → คงค่าเดิม
+}
 async function showApp() {
-  const s = await api('GET', '/api/admin/store');
-  state.vaccines = s.vaccines; state.holidays = s.holidays;
-  $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden'); $('#logoutBtn').classList.remove('hidden');
-  renderVac(); renderHol();
+  load(await api('GET', '/api/admin/store'));
+  $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden'); $('#logoutBtn').classList.remove('hidden'); $('#bar').classList.remove('hidden'); $('#statePill').classList.remove('hidden');
+  renderVac(); renderHol(); renderSettings();
 }
 $('#loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   try { await api('POST', '/api/login', { password: $('#pw').value }); $('#pw').value = ''; $('#flash').replaceChildren(); await showApp(); }
   catch (err) { flash(err.message); }
 });
-$('#logoutBtn').addEventListener('click', async () => { try { await api('POST', '/api/logout', {}); } catch (e) {} showLogin(true); });
+const doLogout = async () => { try { await api('POST', '/api/logout', {}); } catch (e) {} showLogin(true); };
+$('#logoutBtn').addEventListener('click', () => {
+  if (!anyDirty()) return doLogout();
+  ask('ออกจากระบบ ?', 'มีการแก้ที่ยังไม่บันทึก จะหายถ้าออกตอนนี้', 'ออกโดยไม่บันทึก', doLogout);
+});
 
-// ---------- tabs ----------
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
-  ['vac', 'hol', 'io'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== t.dataset.tab));
+/* ---------- tabs ---------- */
+$$('.tab').forEach(t => t.addEventListener('click', () => {
+  $$('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  ['vac', 'hol', 'set', 'io'].forEach(k => $('#tab-' + k).classList.toggle('hidden', k !== t.dataset.tab));
 }));
 
-// ---------- vaccines ----------
-function field(label, value, onInput, attrs) {
-  const inp = h('input', Object.assign({ value: value || '' }, attrs || {}));
-  inp.addEventListener('input', () => onInput(inp.value));
-  return h('div', null, h('label', null, label), inp);
+/* ---------- ตารางวัคซีน ---------- */
+const orderKey = a => a.map(x => x.id).join(',');
+const rowDirty = r => { const o = origVac.find(x => x.id === r.id); return !o || key(o) !== key(r); };
+const vacDirty = () => orderKey(vac) !== orderKey(origVac) || vac.some(rowDirty);
+const holDirty = () => key(holClean(hol)) !== key(holClean(origHol));
+const setDirty = () => key(settings) !== key(origSettings);
+const anyDirty = () => vacDirty() || holDirty() || setDirty();
+
+function sumHTML(r, i) {
+  const chips = r.vaccines.filter(v => v.name.trim()).map(v => `<span class="chip ${v.type}${/^PCV/i.test(v.name) ? ' pcv' : ''}">${v.type === 'oral' ? '💊' : '💉'} ${esc(v.name)}</span>`).join('') || '<span class="muted">— ไม่มีวัคซีน —</span>';
+  const wk = [1, 2, 3, 4, 5].map(w => `<span class="${r.weeks.includes(w) ? 'on' : ''}">${w}</span>`).join('');
+  return `<span class="idx"><span class="grip" tabindex="0" role="button" title="ลากเพื่อเรียงลำดับ (หรือกดลูกศรขึ้น/ลงเมื่อโฟกัสอยู่)" aria-label="จัดลำดับแถว ${i + 1}">⠿</span>${i + 1}</span><span class="age"><b>${esc(r.name) || '(ไม่มีชื่อ)'}</b><span>${esc(r.code) || '—'}</span></span><span class="c-vac">${chips}</span><span class="c-wk wk">${wk}</span><span class="c-time">${esc(r.time) || '—'}</span><span class="c-next">${r.nextAge ? '→ ' + esc(r.nextAge) : '<span class="muted">เข็มสุดท้าย</span>'}</span>`
+    + `<span class="acts"><button data-a="del" class="danger" title="ลบแถว">🗑</button></span>`;
 }
 function renderVac() {
   const list = $('#vacList'); list.replaceChildren();
-  const codes = state.vaccines.map(v => v.code).filter(Boolean);
-  state.vaccines.forEach((r, i) => {
-    const move = (d) => () => { const j = i + d; if (j < 0 || j >= state.vaccines.length) return; [state.vaccines[i], state.vaccines[j]] = [state.vaccines[j], state.vaccines[i]]; renderVac(); };
-    const remove = () => { if (confirm(`ลบช่วงอายุ "${r.name || r.code}" ?\n(ยังไม่บันทึกจนกว่าจะกดบันทึก)`)) { state.vaccines.splice(i, 1); renderVac(); } };
-
-    const nextSel = h('select', null, h('option', { value: '' }, '— ไม่มี (เข็มสุดท้าย) —'),
-      codes.filter(c => c !== r.code).map(c => h('option', { value: c, selected: c === r.nextAge }, c)));
-    nextSel.addEventListener('change', () => { r.nextAge = nextSel.value; });
-
-    const weeks = h('div', { class: 'weeks' }, [1, 2, 3, 4, 5].map(w => {
-      const cb = h('input', { type: 'checkbox', checked: r.weeks.includes(w) });
-      cb.addEventListener('change', () => { r.weeks = cb.checked ? [...new Set([...r.weeks, w])].sort() : r.weeks.filter(x => x !== w); });
-      return h('label', null, cb, 'สัปดาห์ ' + w);
-    }));
-
-    const vacRows = h('div', null, r.vaccines.map((v, j) => {
-      const type = h('select', null, ['injection', 'oral'].map(t => h('option', { value: t, selected: v.type === t }, t === 'injection' ? '💉 ฉีด' : '💊 กิน')));
-      type.addEventListener('change', () => { v.type = type.value; });
-      return h('div', { class: 'vrow' },
-        field('ชื่อวัคซีน', v.name, x => { v.name = x; }, { maxlength: 80 }),
-        field('ชื่อไทย', v.thai, x => { v.thai = x; }, { maxlength: 120 }),
-        h('div', null, h('label', null, 'ชนิด'), type),
-        h('button', { class: 'danger', title: 'ลบวัคซีนนี้', onclick: () => { r.vaccines.splice(j, 1); renderVac(); } }, '✕'));
-    }));
-
-    list.append(h('div', { class: 'card' },
-      h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' },
-        h('b', null, `#${i + 1} ${r.name || '(ยังไม่ตั้งชื่อ)'}`),
-        h('div', { class: 'row' }, h('button', { onclick: move(-1), disabled: i === 0, title: 'เลื่อนขึ้น' }, '↑'), h('button', { onclick: move(1), disabled: i === state.vaccines.length - 1, title: 'เลื่อนลง' }, '↓'), h('button', { class: 'danger', onclick: remove }, 'ลบแถว'))),
-      h('div', { class: 'grid' },
-        field('รหัสอายุ (เช่น 2m, 1y)', r.code, x => { r.code = x.trim(); }, { maxlength: 12 }),
-        field('ชื่ออายุที่แสดง', r.name, x => { r.name = x; }, { maxlength: 40 }),
-        field('เวลาให้บริการ', r.time, x => { r.time = x; }, { maxlength: 40, placeholder: '8:00-11:30น.' }),
-        h('div', null, h('label', null, 'อายุถัดไป (ใช้คำนวณนัดครั้งต่อไป)'), nextSel)),
-      h('div', { style: 'margin-top:10px' }, h('label', null, 'วันพุธสัปดาห์ที่เปิดให้บริการ'), weeks),
-      h('div', { style: 'margin-top:10px' }, field('ข้อความรอบ (เว้นว่าง = สร้างให้อัตโนมัติ)', r.schedule, x => { r.schedule = x; }, { maxlength: 120 })),
-      h('div', { style: 'margin-top:10px' }, h('label', null, 'วัคซีนในช่วงอายุนี้'), vacRows,
-        h('div', { style: 'margin-top:6px' }, h('button', { onclick: () => { r.vaccines.push({ name: '', thai: '', type: 'injection' }); renderVac(); } }, '+ เพิ่มวัคซีน'))),
-      h('div', { style: 'margin-top:10px' }, field('หมายเหตุ (ขึ้นกรอบแดงในหน้าเว็บ)', r.special, x => { r.special = x; }, { maxlength: 300 }))
-    ));
+  const bad = new Set(vacIssues().map(x => x.id));
+  vac.forEach((r, i) => {
+    const box = h('div', { class: 'vrowbox' + (open.has(r.id) ? ' open' : '') + (rowDirty(r) ? ' dirty' : '') + (bad.has(r.id) ? ' bad' : ''), 'data-id': r.id });
+    const sum = h('div', { class: 'sum' }); sum.innerHTML = sumHTML(r, i);
+    sum.addEventListener('click', e => {
+      if (e.target.closest('.grip')) return;
+      const a = e.target.closest('button'); if (a) { e.stopPropagation(); return rowAction(a.dataset.a, r, i); }
+      open.has(r.id) ? open.delete(r.id) : open.add(r.id); renderVac();
+    });
+    wireDrag(box, sum, r);
+    box.append(sum, buildEditor(r)); list.append(box);
   });
+  updateAll();
+}
+
+/* ---------- จัดลำดับ: ลากที่จุดจับ ⠿ (หรือคีย์บอร์ด) ---------- */
+let dragId = null;
+function moveRow(id, toIndex) { // ย้ายแถว id ไปอยู่ตำแหน่ง toIndex (นับหลังดึงแถวออกแล้ว)
+  const from = vac.findIndex(x => x.id === id); if (from < 0) return;
+  const [row] = vac.splice(from, 1); vac.splice(Math.max(0, Math.min(vac.length, toIndex)), 0, row);
+}
+function clearDrop() { $$('.vrowbox.drop-before, .vrowbox.drop-after, .vrowbox.dragging').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging')); }
+function wireDrag(box, sum, r) {
+  const grip = sum.querySelector('.grip');
+  // ให้ลากได้เฉพาะตอนกดที่จุดจับ (กันลากทั้งแถวตอนเลือกข้อความในช่องกรอก)
+  grip.addEventListener('mousedown', () => { box.draggable = true; });
+  box.addEventListener('dragstart', e => {
+    if (!box.draggable) return;
+    dragId = r.id; box.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(r.id));
+  });
+  box.addEventListener('dragend', () => { dragId = null; box.draggable = false; clearDrop(); });
+  box.addEventListener('dragover', e => {
+    if (dragId == null || dragId === r.id) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const rect = box.getBoundingClientRect(), after = e.clientY > rect.top + rect.height / 2;
+    box.classList.toggle('drop-after', after); box.classList.toggle('drop-before', !after);
+  });
+  box.addEventListener('dragleave', e => { if (!box.contains(e.relatedTarget)) box.classList.remove('drop-before', 'drop-after'); });
+  box.addEventListener('drop', e => {
+    if (dragId == null || dragId === r.id) return;
+    e.preventDefault();
+    const after = box.classList.contains('drop-after'), moving = dragId;
+    clearDrop(); dragId = null;
+    let t = vac.findIndex(x => x.id === r.id) + (after ? 1 : 0);
+    if (vac.findIndex(x => x.id === moving) < t) t--;
+    moveRow(moving, t); renderVac();
+    const g = document.querySelector(`[data-id="${moving}"] .grip`); if (g) g.focus();
+  });
+  grip.addEventListener('keydown', e => { // คีย์บอร์ด: ลูกศรขึ้น/ลง เลื่อนทีละแถว
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    const i = vac.findIndex(x => x.id === r.id), j = i + (e.key === 'ArrowUp' ? -1 : 1);
+    if (j < 0 || j >= vac.length) return;
+    moveRow(r.id, j); renderVac();
+    const g = document.querySelector(`[data-id="${r.id}"] .grip`); if (g) g.focus();
+  });
+}
+window.addEventListener('mouseup', () => { $$('.vrowbox').forEach(b => { if (dragId == null) b.draggable = false; }); });
+function buildEditor(r) {
+  const ed = h('div', { class: 'ed' });
+  const inp = (label, prop, extra) => {
+    const w = h('div', null, h('label', { class: 'l' }, label), h('input', Object.assign({ value: r[prop] || '' }, extra || {})));
+    w.querySelector('input').addEventListener('input', e => { r[prop] = prop === 'code' ? e.target.value.trim() : e.target.value; touch(r); });
+    return w;
+  };
+  ed.append(h('div', { class: 'grid' },
+    inp('รหัสอายุ (เช่น 2m, 1y)', 'code', { maxlength: 12 }),
+    inp('ชื่ออายุที่แสดง', 'name', { maxlength: 40 }),
+    inp('เวลาให้บริการ', 'time', { maxlength: 40, placeholder: '8:00-11:30น.' }),
+    (() => {
+      const sel = h('select', null, h('option', { value: '' }, '— ไม่มี (เข็มสุดท้าย) —'),
+        vac.filter(x => x.id !== r.id && x.code).map(x => h('option', { value: x.code, selected: x.code === r.nextAge }, `${x.name || x.code} (${x.code})`)));
+      sel.addEventListener('change', () => { r.nextAge = sel.value; touch(r); });
+      return h('div', null, h('label', { class: 'l' }, 'อายุถัดไป (ใช้คำนวณนัดครั้งต่อไป)'), sel);
+    })()));
+  const wrap = h('div', { class: 'weeks' }, [1, 2, 3, 4, 5].map(w => {
+    const cb = h('input', { type: 'checkbox', checked: r.weeks.includes(w) });
+    const l = h('label', { class: r.weeks.includes(w) ? 'on' : '' }, cb, 'สัปดาห์ ' + w);
+    cb.addEventListener('change', () => { r.weeks = cb.checked ? [...new Set([...r.weeks, w])].sort() : r.weeks.filter(x => x !== w); l.classList.toggle('on', cb.checked); touch(r); });
+    return l;
+  }));
+  ed.append(h('div', { style: 'margin-top:10px' }, h('label', { class: 'l' }, 'วันพุธสัปดาห์ที่เปิดให้บริการ'), wrap));
+  const sc = inp('ข้อความรอบ (เว้นว่าง = สร้างให้อัตโนมัติ)', 'schedule', { maxlength: 120 }); sc.style.marginTop = '10px'; ed.append(sc);
+  const vs = h('div', { style: 'margin-top:10px' }, h('label', { class: 'l' }, 'วัคซีนในช่วงอายุนี้'));
+  r.vaccines.forEach((v, j) => {
+    const type = h('select', null, ['injection', 'oral'].map(t => h('option', { value: t, selected: v.type === t }, t === 'injection' ? '💉 ฉีด' : '💊 กิน')));
+    type.addEventListener('change', () => { v.type = type.value; touch(r); });
+    const a = h('input', { value: v.name || '', maxlength: 80 }), b = h('input', { value: v.thai || '', maxlength: 120 });
+    a.addEventListener('input', () => { v.name = a.value; touch(r); }); b.addEventListener('input', () => { v.thai = b.value; touch(r); });
+    vs.append(h('div', { class: 'vac3' },
+      h('div', null, h('label', { class: 'l' }, 'ชื่อวัคซีน'), a), h('div', null, h('label', { class: 'l' }, 'ชื่อไทย'), b),
+      h('div', null, h('label', { class: 'l' }, 'ชนิด'), type),
+      h('button', { class: 'danger', title: 'ลบวัคซีนนี้', onclick: () => { r.vaccines.splice(j, 1); renderVac(); } }, '✕')));
+  });
+  vs.append(h('button', { style: 'margin-top:8px', onclick: () => { r.vaccines.push({ name: '', thai: '', type: 'injection' }); renderVac(); } }, '+ เพิ่มวัคซีน'));
+  ed.append(vs);
+  const sp = inp('หมายเหตุ (ขึ้นกรอบแดงในหน้าเว็บ)', 'special', { maxlength: 300 }); sp.style.marginTop = '10px'; ed.append(sp);
+  return ed;
+}
+function touch(r) { // อัปเดตเฉพาะสรุปแถวนั้น ไม่วาดใหม่ทั้งหมด (เคอร์เซอร์ไม่หลุด)
+  const box = document.querySelector(`[data-id="${r.id}"]`); if (!box) return;
+  box.querySelector('.sum').innerHTML = sumHTML(r, vac.indexOf(r));
+  box.classList.toggle('dirty', rowDirty(r)); box.classList.toggle('bad', vacIssues().some(x => x.id === r.id));
+  updateAll();
+}
+function jump(id) { open.add(id); renderVac(); const n = document.querySelector(`[data-id="${id}"]`); if (n) n.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function rowAction(a, r, i) {
+  if (a === 'del') ask(`ลบช่วงอายุ "${r.name || r.code || '(ไม่มีชื่อ)'}" ?`, 'ยังไม่บันทึกจนกว่าจะกดปุ่มบันทึก (กด "ยกเลิกการแก้ทั้งหมด" เพื่อกู้คืนได้)', 'ลบแถว', () => { vac.splice(i, 1); renderVac(); });
 }
 $('#addVac').addEventListener('click', () => {
-  state.vaccines.push({ code: '', name: '', vaccines: [{ name: '', thai: '', type: 'injection' }], schedule: '', weeks: [1, 3], time: '', nextAge: '', special: '' });
-  renderVac(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-});
-$('#saveVac').addEventListener('click', async () => {
-  const b = $('#saveVac'); b.disabled = true;
-  try { const r = await api('PUT', '/api/admin/vaccines', { vaccines: state.vaccines }); state.vaccines = r.vaccines; renderVac(); $('#vacState').textContent = 'บันทึกแล้ว ' + new Date().toLocaleTimeString('th-TH'); flash('บันทึกตารางวัคซีนเรียบร้อย', true); }
-  catch (e) { flash(e.message); } finally { b.disabled = false; }
+  const r = { id: ++uid, code: '', name: '', vaccines: [{ name: '', thai: '', type: 'injection' }], schedule: '', weeks: [1, 3], time: '', nextAge: '', special: '' };
+  vac.push(r); open.add(r.id); renderVac(); jump(r.id);
 });
 
-// ---------- holidays ----------
+/* ---------- วันหยุด ---------- */
 function renderHol() {
-  const tb = $('#holTable tbody'); tb.replaceChildren();
-  state.holidays.forEach((r, i) => {
-    const date = h('input', { type: 'date', value: r.date }); date.addEventListener('input', () => { r.date = date.value; });
-    const name = h('input', { value: r.name, maxlength: 100 }); name.addEventListener('input', () => { r.name = name.value; });
-    tb.append(h('tr', null, h('td', null, date), h('td', null, name), h('td', null, h('button', { class: 'danger', onclick: () => { state.holidays.splice(i, 1); renderHol(); } }, 'ลบ'))));
+  const tb = $('#holBody'); tb.replaceChildren();
+  hol.forEach((r, i) => {
+    const tr = h('tr', { 'data-id': r.id });
+    tr.innerHTML = `<td><input class="d" value="${esc(r.txt != null ? r.txt : toBE(r.date))}" placeholder="วว/ดด/พ.ศ."></td><td class="dw"></td><td><input class="n" value="${esc(r.name)}" maxlength="100"></td><td class="ef"></td><td><button class="danger">ลบ</button></td>`;
+    const paint = () => {
+      const d = dow(r.date), cancel = r.name.trim() === 'ยกเลิก';
+      tr.querySelector('.dw').textContent = d < 0 ? '—' : DAYS[d];
+      const same = r.date && hol.some(x => x !== r && x.date === r.date && x.name.trim() === 'ยกเลิก');
+      tr.querySelector('.ef').innerHTML = d < 0 ? '<span class="tag other">—</span>' : cancel ? '<span class="tag cancel">ยกเลิกวันหยุด</span>' : same ? '<span class="tag cancel">ถูกยกเลิกโดยแถว "ยกเลิก"</span>' : d === 3 ? '<span class="tag wed">⚠ ตรงวันพุธ งดนัด</span>' : '<span class="tag other">ไม่ใช่วันพุธ (ไม่กระทบ)</span>';
+      tr.querySelector('.d').style.borderColor = r.date ? '' : 'var(--danger)';
+    };
+    tr.querySelector('.d').addEventListener('input', e => { r.txt = e.target.value; r.date = fromBE(e.target.value) || ''; paint(); updateAll(); });
+    tr.querySelector('.n').addEventListener('input', e => { r.name = e.target.value; paint(); updateAll(); });
+    tr.querySelector('button').addEventListener('click', () => ask('ลบวันหยุดนี้ ?', `${toBE(r.date) || '(ไม่มีวันที่)'} ${r.name}`, 'ลบ', () => { hol.splice(i, 1); renderHol(); }));
+    paint(); tb.append(tr);
   });
-  if (!state.holidays.length) tb.append(h('tr', null, h('td', { colspan: 3, class: 'muted' }, 'ยังไม่มีรายการ')));
+  if (!hol.length) tb.innerHTML = '<tr><td colspan="5" class="muted">ยังไม่มีรายการ</td></tr>';
+  updateAll();
 }
-$('#addHol').addEventListener('click', () => { state.holidays.push({ date: '', name: '' }); renderHol(); });
-$('#saveHol').addEventListener('click', async () => {
-  const b = $('#saveHol'); b.disabled = true;
-  try {
-    state.holidays.sort((a, c) => a.date.localeCompare(c.date));
-    const r = await api('PUT', '/api/admin/holidays', { holidays: state.holidays }); state.holidays = r.holidays; renderHol();
-    $('#holState').textContent = 'บันทึกแล้ว ' + new Date().toLocaleTimeString('th-TH'); flash('บันทึกวันหยุดเรียบร้อย', true);
-  } catch (e) { flash(e.message); } finally { b.disabled = false; }
-});
+$('#addHol').addEventListener('click', () => { hol.push({ id: ++uid, date: '', name: '', txt: '' }); renderHol(); const t = $$('#holBody .d'); t[t.length - 1].focus(); });
 
-// ---------- import ----------
+/* ---------- สถานะรวม / แถบบันทึก ---------- */
+/* ---------- ข้อมูลคลินิก ---------- */
+const SET_FIELDS = [['setApp', 'appTitle', 'ชื่อระบบ', 80], ['setHosp', 'hospitalName', 'ชื่อโรงพยาบาล', 80], ['setShort', 'clinicShort', 'ชื่อย่อคลินิก', 20]];
+function settingsIssues() {
+  const out = [];
+  SET_FIELDS.forEach(([id, prop, label, max]) => {
+    const v = (settings[prop] || '').trim();
+    if (!v) out.push({ id, msg: `${label}: ห้ามเว้นว่าง` });
+    else if (v.length > max) out.push({ id, msg: `${label}: ยาวเกิน ${max} ตัวอักษร` });
+    else if (BAD.test(v)) out.push({ id, msg: `${label}: มีอักขระที่ไม่อนุญาต (< > " \` \\)` });
+  });
+  return out;
+}
+function paintSettingsPreview() {
+  $('#prevApp').textContent = settings.appTitle || '(ยังไม่ได้ใส่ชื่อระบบ)';
+  $('#prevHosp').textContent = settings.hospitalName || '(ยังไม่ได้ใส่ชื่อโรงพยาบาล)';
+  $('#prevShort1').textContent = $('#prevShort2').textContent = settings.clinicShort || '…';
+}
+function renderSettings() {
+  SET_FIELDS.forEach(([id, prop]) => {
+    const el = document.getElementById(id); el.value = settings[prop] || '';
+    el.oninput = () => { settings[prop] = el.value; paintSettingsPreview(); updateAll(); };
+  });
+  paintSettingsPreview(); updateAll();
+}
+
+function updateAll() {
+  const dv = vacDirty(), dh = holDirty(), ds = setDirty(), n = [dv, dh, ds].filter(Boolean).length;
+  $$('.tab').forEach(t => t.classList.toggle('has-dirty', t.dataset.tab === 'vac' ? dv : t.dataset.tab === 'hol' ? dh : t.dataset.tab === 'set' ? ds : false));
+  const vi = vacIssues(), hi = holIssues(), si = settingsIssues();
+  renderIssues($('#vacIssues'), vi, jump);
+  renderIssues($('#holIssues'), hi, id => { const r = document.querySelector(`#holBody [data-id="${id}"] .d`); if (r) { r.focus(); r.scrollIntoView({ block: 'center' }); } });
+  renderIssues($('#setIssues'), si, id => { const el = document.getElementById(id); if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); } });
+  const bad = (dv ? vi.length : 0) + (dh ? hi.length : 0) + (ds ? si.length : 0), total = vi.length + hi.length + si.length;
+  const pill = $('#statePill'); pill.className = 'pill' + (n ? ' dirty' : '') + (pill.classList.contains('hidden') ? ' hidden' : '');
+  pill.textContent = n ? `● มีการแก้ที่ยังไม่บันทึก (${n} ส่วน)` : '✓ บันทึกล่าสุดแล้ว';
+  $('#save').disabled = !n || !!bad; $('#discard').disabled = !n;
+  $('#barMsg').textContent = bad ? `⚠️ ยังบันทึกไม่ได้: พบ ${bad} จุดที่ต้องแก้` : n ? `พร้อมบันทึก · แก้ ${[dv && 'ตารางวัคซีน', dh && 'วันหยุด', ds && 'ข้อมูลคลินิก'].filter(Boolean).join(', ')}` : (total ? `มี ${total} จุดที่ควรตรวจ (ไม่ได้มาจากการแก้ครั้งนี้)` : 'ไม่มีการแก้ที่ยังไม่บันทึก');
+}
+window.addEventListener('beforeunload', e => { if (!$('#appView').classList.contains('hidden') && anyDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+$('#save').addEventListener('click', async () => {
+  const b = $('#save'); b.disabled = true;
+  const saved = [];
+  try {
+    if (vacDirty()) { const r = await api('PUT', '/api/admin/vaccines', { vaccines: vacClean(vac) }); vac = withIds(r.vaccines); origVac = clone(vac); saved.push('ตารางวัคซีน'); }
+    if (holDirty()) {
+      const sorted = holClean(hol).sort((a, c) => a.date.localeCompare(c.date));
+      const r = await api('PUT', '/api/admin/holidays', { holidays: sorted }); hol = withIds(r.holidays); origHol = clone(hol); saved.push('วันหยุด');
+    }
+    if (setDirty()) {
+      const r = await api('PUT', '/api/admin/settings', { settings: { appTitle: settings.appTitle, hospitalName: settings.hospitalName, clinicShort: settings.clinicShort } });
+      settings = clone(r.settings); origSettings = clone(r.settings); saved.push('ข้อมูลคลินิก');
+    }
+    renderVac(); renderHol(); renderSettings();
+    flash('บันทึกเรียบร้อย: ' + saved.join(', ') + ' (' + new Date().toLocaleTimeString('th-TH') + ')', true);
+  } catch (e) { renderVac(); renderHol(); renderSettings(); flash((saved.length ? 'บันทึกแล้ว: ' + saved.join(', ') + ' · แต่ ' : '') + e.message); }
+  finally { updateAll(); }
+});
+$('#discard').addEventListener('click', () => ask('ยกเลิกการแก้ทั้งหมด ?', 'ข้อมูลทุกส่วนจะกลับไปเป็นค่าที่บันทึกล่าสุด', 'ยกเลิกการแก้', () => { vac = clone(origVac); hol = clone(origHol); settings = clone(origSettings); renderVac(); renderHol(); renderSettings(); }));
+
+/* ---------- import ---------- */
 const readFile = f => new Promise((res, rej) => { if (!f) return res(''); const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsText(f, 'utf-8'); });
 $('#importBtn').addEventListener('click', async () => {
   const b = $('#importBtn'); b.disabled = true;
   try {
     const body = { vaccinesCsv: await readFile($('#fileVac').files[0]), holidaysCsv: await readFile($('#fileHol').files[0]) };
     if (!body.vaccinesCsv && !body.holidaysCsv) throw new Error('กรุณาเลือกไฟล์ CSV อย่างน้อย 1 ไฟล์');
-    if (!confirm('นำเข้าจะแทนที่ข้อมูลส่วนนั้นทั้งหมด (มีสำเนาสำรองบน server) ดำเนินการต่อ?')) return;
-    const r = await api('POST', '/api/admin/import', body);
-    state.vaccines = r.vaccines; state.holidays = r.holidays; renderVac(); renderHol();
-    $('#fileVac').value = ''; $('#fileHol').value = '';
-    flash('นำเข้าเรียบร้อย: ' + r.imported.join(', '), true);
-  } catch (e) { flash(e.message); } finally { b.disabled = false; }
+    const go = async () => {
+      try {
+        const r = await api('POST', '/api/admin/import', body);
+        load(r); renderVac(); renderHol();
+        $('#fileVac').value = ''; $('#fileHol').value = '';
+        flash('นำเข้าเรียบร้อย: ' + r.imported.join(', '), true);
+      } catch (e) { flash(e.message); } finally { b.disabled = false; }
+    };
+    const warn = anyDirty() ? 'มีการแก้ที่ยังไม่บันทึก จะถูกแทนที่ด้วยข้อมูลที่นำเข้าด้วย' : 'นำเข้าจะแทนที่ข้อมูลส่วนนั้นทั้งหมด (มีสำเนาสำรองบน server)';
+    ask('นำเข้า CSV ?', warn, 'นำเข้า', go);
+    $('#mNo').addEventListener('click', () => { b.disabled = false; }, { once: true });
+  } catch (e) { flash(e.message); b.disabled = false; }
 });
 
-// ---------- boot ----------
+/* ---------- boot ---------- */
 (async () => {
   try {
     const me = await api('GET', '/api/me');

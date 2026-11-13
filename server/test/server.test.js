@@ -165,6 +165,52 @@ test('บันทึกวันหยุดและนำเข้า CSV', a
   assert.match(await (await fetch(base + '/data/holidays.csv')).text(), /2026-01-02,นำเข้า/);
 });
 
+test('ข้อมูลคลินิก: public อ่านได้, แก้ต้อง login, ข้อมูลเสียถูกปฏิเสธ, บันทึกแล้ว public เปลี่ยนตาม', async () => {
+  const pub = await fetch(base + '/data/settings.json');
+  assert.equal(pub.status, 200);
+  const def = await pub.json();
+  assert.deepEqual(def, { hospitalName: 'โรงพยาบาลวังน้ำเย็น', appTitle: 'ระบบนัดหมายวัคซีน WCC', clinicShort: 'WCC' });
+
+  const body = JSON.stringify({ settings: { hospitalName: 'รพ.ทดสอบ', appTitle: 'นัดวัคซีนทดสอบ', clinicShort: 'TST' } });
+  assert.equal((await fetch(base + '/api/admin/settings', { method: 'PUT', headers: J, body })).status, 401, 'ไม่ login ต้องแก้ไม่ได้');
+
+  const { cookie } = await login(); const H = { ...J, cookie };
+  for (const bad of [
+    { hospitalName: '', appTitle: 'x', clinicShort: 'x' },                    // ว่าง
+    { hospitalName: '<script>', appTitle: 'x', clinicShort: 'x' },            // XSS
+    { hospitalName: 'x', appTitle: 'x'.repeat(81), clinicShort: 'x' },        // ยาวเกิน
+    { hospitalName: 'x', appTitle: 'x', clinicShort: 'ยาวเกินยี่สิบตัวอักษรแน่นอนแน่นอน' },
+  ]) {
+    const r = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: bad }) });
+    assert.equal(r.status, 400, JSON.stringify(bad));
+  }
+  assert.deepEqual(await (await fetch(base + '/data/settings.json')).json(), def, 'ข้อมูลเสียต้องไม่ทับของเดิม');
+
+  const ok = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await (await fetch(base + '/data/settings.json')).json(), { hospitalName: 'รพ.ทดสอบ', appTitle: 'นัดวัคซีนทดสอบ', clinicShort: 'TST' });
+  assert.equal((await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).settings.clinicShort, 'TST');
+  assert.match(fs.readFileSync(path.join(dataDir, 'audit.log'), 'utf8'), /save clinic settings/);
+  // คืนค่าเดิม ไม่ให้กระทบเทสต์อื่น
+  await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: def }) });
+});
+
+test('store.json รุ่นเก่า (ไม่มี settings) → เติมค่าตั้งต้นให้ ไม่ทำให้ server ล้ม', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wcc-old-'));
+  const seedFile = path.join(ROOT, 'seed');
+  const old = { version: 1, updatedAt: '2026-01-01T00:00:00.000Z', vaccines: [{ code: '2m', name: '2 เดือน', vaccines: [{ name: 'X', thai: 'เอ็กซ์', type: 'injection' }], schedule: '', weeks: [1], time: '', nextAge: '', special: '' }], holidays: [] };
+  fs.writeFileSync(path.join(dir, 'store.json'), JSON.stringify(old));
+  assert.ok(fs.existsSync(seedFile));
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const p = spawn(process.execPath, [path.join(ROOT, 'server.js')], { env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', DATA_DIR: dir, WEB_DIR: webDir }, stdio: 'ignore' });
+  try {
+    let res;
+    for (let i = 0; i < 50 && !res; i++) { try { res = await fetch(`http://127.0.0.1:${port}/data/settings.json`); } catch (e) { await new Promise(r => setTimeout(r, 100)); } }
+    assert.ok(res, 'server ไม่ขึ้น');
+    assert.equal((await res.json()).clinicShort, 'WCC');
+  } finally { p.kill(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('logout แล้ว session ใช้ไม่ได้', async () => {
   const { cookie } = await login();
   await fetch(base + '/api/logout', { method: 'POST', headers: { ...J, cookie }, body: '{}' });
