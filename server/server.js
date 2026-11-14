@@ -182,7 +182,7 @@ function serveFile(res, file, type, extraHeaders) {
     send(res, 200, buf, type, Object.assign({ 'Cache-Control': 'no-cache' }, extraHeaders || {}));
   });
 }
-const ADMIN_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+const ADMIN_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 
 // ---------- routes ----------
 const server = http.createServer(async (req, res) => {
@@ -237,6 +237,12 @@ const server = http.createServer(async (req, res) => {
       if (!isAdmin(req)) return json(res, 401, { error: 'กรุณาเข้าสู่ระบบ' });
       if (m === 'GET' && p === '/api/admin/store') return json(res, 200, { vaccines: store.vaccines, holidays: store.holidays, settings: store.settings, updatedAt: store.updatedAt, updatedBy: store.updatedBy || null, rev: store.rev, me: actorOf(req) });
       if (m === 'GET' && p === '/api/admin/history') return json(res, 200, { audit: readAuditTail(200), backups: listBackups(), me: actorOf(req) });
+      if (m === 'GET' && p === '/api/admin/changelog') {
+        // ประวัติเวอร์ชัน (เก็บในไฟล์ changelog.json ข้างโค้ด) — ไม่มี/อ่านไม่ได้ก็ไม่ทำให้หน้าแอดมินพัง
+        let c = { note: '', versions: [] };
+        try { const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'changelog.json'), 'utf8')); if (j && Array.isArray(j.versions)) c = j; } catch (e) {}
+        return json(res, 200, c);
+      }
       if (m === 'POST' && p === '/api/admin/restore') {
         const b = await readBody(req);
         const f = typeof b.file === 'string' ? b.file : '';

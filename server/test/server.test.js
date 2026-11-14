@@ -215,6 +215,46 @@ test('audit log ระบุผู้แก้จากอีเมล Cloudflar
   assert.doesNotMatch(audit, /script/, 'ค่าแปลกปลอมห้ามเข้า log');
 });
 
+test('ประวัติเวอร์ชัน: ต้อง login, เรียงใหม่→เก่า, ทุกเวอร์ชันมีรายละเอียด และเลขบนป้าย index.html ตรงกับรายการล่าสุด', async () => {
+  assert.equal((await fetch(base + '/api/admin/changelog')).status, 401);
+  const { cookie } = await login();
+  const c = await (await fetch(base + '/api/admin/changelog', { headers: { cookie } })).json();
+  assert.ok(c.versions.length >= 8);
+  const nums = c.versions.map(v => v.version);
+  assert.deepEqual(nums, [...nums].sort((a, b) => b - a), 'ต้องเรียงเลขเวอร์ชันจากมากไปน้อย');
+  assert.equal(new Set(nums).size, nums.length, 'เลขเวอร์ชันห้ามซ้ำ');
+  for (const v of c.versions) { assert.ok(v.title && v.date && Array.isArray(v.items) && v.items.length, `เวอร์ชัน ${v.version} ต้องมี title/date/items`); assert.ok(!isNaN(new Date(v.date))); }
+  const label = /✨ เวอร์ชัน (\d+) ·/.exec(fs.readFileSync(INDEX_HTML, 'utf8'));
+  assert.ok(label, 'ไม่พบป้ายเวอร์ชันใน index.html');
+  assert.equal(Number(label[1]), nums[0], 'ขึ้นเลขเวอร์ชันที่ป้ายแล้วต้องเพิ่มรายละเอียดใน server/changelog.json ด้วย');
+});
+
+test('นำเข้าปฏิทิน .ics (ตัวอ่านในหน้าแอดมิน): วันที่ล้วน/ช่วงวัน/เวลา UTC/พับบรรทัด/ข้ามรายการซ้ำ-ยกเลิก-ไม่ซ้ำปี/ล้างอักขระต้องห้าม', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+  const a = html.indexOf('/*ICS-PARSER-START*/'), b = html.indexOf('/*ICS-PARSER-END*/');
+  assert.ok(a > 0 && b > a, 'ไม่พบตัวอ่าน .ics ใน admin.html');
+  const parseIcs = new Function(html.slice(a, b) + '; return parseIcs;')();
+  const ev = (...l) => ['BEGIN:VEVENT', ...l, 'END:VEVENT'].join('\r\n');
+  const cal = ['BEGIN:VCALENDAR',
+    ev('DTSTART;VALUE=DATE:20270101', 'DTEND;VALUE=DATE:20270102', 'SUMMARY:วันขึ้นปีใหม่'),
+    ev('DTSTART;VALUE=DATE:20270413', 'DTEND;VALUE=DATE:20270416', 'SUMMARY:สงกรานต์\, <b>ชื่อ</b>'),      // 3 วัน (DTEND ไม่รวมวันสุดท้าย) + อักขระต้องห้าม
+    ev('DTSTART:20261231T170000Z', 'SUMMARY:ปีใหม่ (UTC)'),                                                  // 17:00Z = 1 ม.ค. เวลาไทย
+    ev('DTSTART;VALUE=DATE:20270101', 'SUMMARY:วันขึ้นปีใหม่'),                                              // ซ้ำกับรายการแรก
+    ev('DTSTART;VALUE=DATE:20270505', 'RRULE:FREQ=YEARLY', 'SUMMARY:ซ้ำรายปี'),
+    ev('DTSTART;VALUE=DATE:20270506', 'STATUS:CANCELLED', 'SUMMARY:ยกเลิก'),
+    ev('DTSTART;VALUE=DATE:20190101', 'SUMMARY:เก่าเกิน'),
+    ev('DTSTART;VALUE=DATE:20270231', 'SUMMARY:วันที่ไม่มีจริง'),
+    ev('DTSTART;VALUE=DATE:20270701', 'SUMMARY:ชื่อที่ถูกพับ', ' ต่อบรรทัด'),
+    'END:VCALENDAR'].join('\r\n');
+  const r = parseIcs(cal);
+  const got = r.events.map(e => e.date + ' ' + e.name);
+  assert.deepEqual(got, ['2027-01-01 ปีใหม่ (UTC)', '2027-01-01 วันขึ้นปีใหม่', '2027-04-13 สงกรานต์, b ชื่อ /b', '2027-04-14 สงกรานต์, b ชื่อ /b', '2027-04-15 สงกรานต์, b ชื่อ /b', '2027-07-01 ชื่อที่ถูกพับต่อบรรทัด']);
+  assert.deepEqual(r.skipped, { recurring: 1, cancelled: 1, noDate: 1, outOfRange: 1, tooLong: 0 });
+  assert.equal(parseIcs('hello').total, 0);
+  // ทุกชื่อที่นำเข้าต้องผ่านกติกาของ server
+  assert.doesNotThrow(() => L.validateHolidays(r.events));
+});
+
 test('ประวัติและคืนค่าจากไฟล์สำรอง: ต้อง login, ตรวจชื่อไฟล์, ตรวจข้อมูลด้วยกติกาเดิม, คงข้อมูลคลินิกเมื่อสำรองรุ่นเก่า, คืนค่าแล้วย้อนกลับได้', async () => {
   const bk = path.join(dataDir, 'backups');
   assert.equal((await fetch(base + '/api/admin/history')).status, 401);
