@@ -42,6 +42,18 @@
   const MIN_START_MONTHS = 2;   // ต่ำกว่านี้ ตาราง CPG ไม่ครอบคลุม
   const MAX_START_MONTHS = 23;  // 24 เดือนขึ้นไป: "พิจารณาตามชนิดวัคซีนและช่วงอายุที่ได้รับการรับรอง"
 
+  // เด็กกลุ่มเสี่ยงสูง (ภูมิคุ้มกันบกพร่อง ไม่มีม้าม โรคเรื้อรัง เช่น โรคปอด โรคหัวใจ): CPG หน้า 8 ข้อ 6 แนะนำสูตร 3p+1
+  //   ชุดเบื้องต้น 3 เข็มที่อายุ 2, 4, 6 เดือน + เข็มกระตุ้น 1 เข็มที่อายุ 12–15 เดือน และให้ปรึกษากุมารแพทย์รายบุคคล
+  // CPG "ไม่มีตารางล่าช้า" ของสูตรนี้ ระบบจึงคำนวณจริงเฉพาะเด็กที่เริ่มทันชุดเบื้องต้น (เริ่ม 2–3 เดือน → เข็ม 2, 3 ไปพร้อมรอบ 4, 6 เดือน)
+  // เด็กที่เริ่มหลัง 3 เดือน: แสดงแผนสูตรปกติ (2p+1) พร้อมคำเตือนว่า "อาจไม่พอ" ให้กุมารแพทย์กำหนด — ไม่คิดเลขสูตร 3p+1 เองโดยไม่มีแหล่งอ้างอิง
+  const HR_STANDARD = 'เด็กกลุ่มเสี่ยงสูง: CPG แนะนำสูตร 3p+1 คือชุดเบื้องต้น 3 เข็มที่อายุ 2, 4, 6 เดือน และเข็มกระตุ้น 1 เข็มที่อายุ 12–15 เดือน — ควรปรึกษากุมารแพทย์ประเมินประวัติ อายุ และความเสี่ยงเป็นรายบุคคล และอาจต้องพิจารณาวัคซีนนิวโมค็อกคัสชนิดอื่นเพิ่มเติม';
+  const HR_SPECIALIST = 'เด็กกลุ่มเสี่ยงสูงที่เริ่ม PCV หลังอายุ 3 เดือน: CPG ไม่มีตารางล่าช้าของสูตร 3p+1 — แผนด้านล่างคำนวณตามสูตรปกติ (2p+1) ซึ่งอาจ "ไม่พอ" สำหรับเด็กกลุ่มนี้ กรุณาให้กุมารแพทย์กำหนดจำนวนเข็มและวันนัด';
+  const HR_COMPLETE = 'เจ้าหน้าที่ระบุว่าครบแล้ว — เด็กกลุ่มเสี่ยงสูงควรตรวจว่าครบตามสูตรที่กุมารแพทย์กำหนด (CPG แนะนำ 3p+1) ระบบไม่ได้ตรวจย้อนหลัง';
+
+  // วัคซีน PCV ของแผนงานปัจจุบัน และอายุสูงสุดที่ทะเบียนรับรอง (เดือน, "ก่อนครบ 2 ปี" = 24) — ดูการใช้ใน plan(); index.html ส่งค่าจริงมาทาง env.product
+  // advice = สิ่งที่เจ้าหน้าที่ต้องบอกผู้ปกครองเมื่อเข็มนั้นให้ที่คลินิกไม่ได้ (14 พ.ย. 2569: คลินิกไม่มี PCV ชนิดอื่น แนะนำไปฉีดที่อื่น ไม่มีการส่งต่อ — ถ้าอนาคตมีชนิดอื่น แก้ข้อความนี้ที่เดียว)
+  const DEFAULT_PRODUCT = { name: 'SII PNEUMOSIL', maxAgeMonths: 24, advice: 'แนะนำผู้ปกครองไปฉีดเข็มนี้ที่อื่นด้วย PCV ชนิดอื่น (คลินิกไม่มี PCV ชนิดอื่น และไม่มีการส่งต่อ)' };
+
   const NOW = { how: 'now' };
   const WITH = (visit, fallback) => (fallback ? { how: 'with', visit, fallback } : { how: 'with', visit });
   const AGE = months => ({ how: 'age', months });                       // เดี่ยว ๆ ตามอายุ (PCV เปิดทุกพุธ)
@@ -96,11 +108,12 @@
     // จำนวนเข็มที่ฉีดแล้ว: ระบุตรง ๆ (hist.count) หรือนับจากวันที่ที่กรอก (วิธีเดิม)
     const count = hist.count != null ? hist.count : (given2 ? 2 : given1 ? 1 : 0);
 
+    const highRisk = !!opts.highRisk;   // เด็กกลุ่มเสี่ยงสูง → ดู HR_* ด้านบน
     const fail = (code, message) => ({ ok: false, code, message });
     if (isNaN(birth) || isNaN(visit)) return fail('bad-input', 'วันเกิดหรือวันที่มารับบริการไม่ถูกต้อง');
     if (visit < birth) return fail('bad-input', 'วันที่มารับบริการต้องไม่ก่อนวันเกิด');
     // เจ้าหน้าที่ระบุว่า "ครบแล้ว": ไม่ต้องนัด ไม่ตรวจอายุ/วันที่ย้อนหลัง
-    if (hist.complete) return { ok: true, complete: true, startMonths: null, gapDays: null, doses: [], cpgAlt: {} };
+    if (hist.complete) return { ok: true, complete: true, startMonths: null, gapDays: null, doses: [], cpgAlt: {}, highRisk: highRisk ? { schedule: '3p+1', mode: 'complete', message: HR_COMPLETE } : null };
     if (!Number.isInteger(count) || count < 0 || count > 2) return fail('bad-history', 'จำนวนเข็มที่ฉีดแล้วต้องเป็น 0, 1 หรือ 2 (ครบแล้วให้เลือก "ครบแล้ว")');
     if (given2 && !given1) return fail('bad-history', 'ระบุวันที่เข็ม 2 แล้ว ต้องระบุวันที่เข็ม 1 ด้วย');
     if ((given1 && count < 1) || (given2 && count < 2)) return fail('bad-history', 'จำนวนเข็มไม่ตรงกับวันที่ที่กรอก');
@@ -127,6 +140,7 @@
 
     const rule = RULES[startM];
     const gapDays = minGapDays(startM);
+    const hrStandard = highRisk && startM <= 3;   // เริ่มทันชุดเบื้องต้นของสูตร 3p+1 → คำนวณครบ 4 เข็ม
 
     // หาวันของเข็มหนึ่ง โดยไม่ให้ก่อน notBefore
     function resolve(spec, notBefore, gapNote) {
@@ -233,6 +247,22 @@
       else doses.push({ n: 3, state: 'unavailable', date: null, warnings: ['ยังกำหนดเข็ม 2 ไม่ได้'], notes: [] });
     }
 
+    // สูตร 3p+1 (กลุ่มเสี่ยงสูง เริ่ม 2–3 เดือน): เข็ม 1 ตามเดิม แล้วสร้างเข็ม 2 (รอบ 4 เดือน) เข็ม 3 (รอบ 6 เดือน) เข็ม 4 = กระตุ้น (รอบ 1 ปี พร้อม LAJE1)
+    // ระยะห่างขั้นต่ำ: ชุดเบื้องต้น 4 สัปดาห์ (CPG: แนะนำ 8 สัปดาห์ ลดได้ถึง 4) · เข็มกระตุ้นห่างเข็ม 3 อย่างน้อย 8 สัปดาห์ (ตามที่ใช้กับสูตรปกติ — CPG ไม่ได้กำหนดสำหรับ 3p+1)
+    if (hrStandard) {
+      doses.length = 1;
+      const hrSpecs = { 2: WITH('4m'), 3: WITH('6m'), 4: WITH('1y') };
+      for (let n = 2; n <= 4; n++) {
+        if (n <= count) { doses.push({ n, state: 'given', date: n === 2 ? given2 : null, warnings: [], notes: [] }); continue; }
+        const prev = doses[n - 2], prevUndated = prev.state === 'given' && !prev.date;
+        if (!prev.date && !prevUndated) { doses.push({ n, state: 'unavailable', date: null, warnings: ['ยังกำหนดเข็มก่อนหน้าไม่ได้'], notes: [] }); continue; }
+        const gap = n < 4 ? 28 : 56;
+        const dn = schedule(n, hrSpecs[n], prevUndated ? birth : addDays(prev.date, gap), 'ปรับวันให้ห่างจากเข็ม ' + (n - 1) + ' อย่างน้อย ' + (gap / 7) + ' สัปดาห์');
+        if (n === 4 && dn.date && ageMonths(birth, dn.date) > 15) dn.warnings.push('เข็มกระตุ้นเลยช่วงอายุ 12–15 เดือนที่ CPG ให้ (สูตร 3p+1) — ตรวจสอบก่อนนัด');
+        doses.push(dn);
+      }
+    }
+
     // เข็มก่อนหน้าฉีดแล้วแต่ไม่ทราบวันที่ → เข็มถัดไป (เข็มแรกที่ยังไม่ฉีด) ไม่ได้ตรวจระยะห่าง แจ้งให้เห็น
     let unverifiedGap = false;
     const nextIdx = doses.findIndex(d => d.state !== 'given');
@@ -243,15 +273,34 @@
     // เข็มที่ตกตอนอายุ ≥ 24 เดือน (ตาราง CPG ครอบคลุมถึง 23 เดือน) → เตือนให้ปรึกษาแพทย์ (ผู้ใช้สั่ง 3 พ.ย. 2569)
     // ยกเว้นเข็ม 2 ของผู้เริ่ม 19–23 เดือน (แถว "ห่าง ≥ 8 สัปดาห์ ไม่มีเพดาน" ซึ่งตกหลัง 24 เดือนโดยธรรมชาติ ผู้ใช้สั่งไม่เตือน)
     // และไม่เตือนซ้ำถ้าเข็มนั้นมีคำเตือนอื่นอยู่แล้ว (เกินเพดาน/เลยช่วงรอบ/ล่าช้ามาก)
-    const exemptD2 = rule.d2.how === 'gap' && !rule.d2.maxAge;
+    const exemptD2 = !hrStandard && rule.d2.how === 'gap' && !rule.d2.maxAge;
+    // วัคซีนของแผนงาน (ตอนนี้ SII PNEUMOSIL รับรอง 6 สัปดาห์ถึงก่อนครบ 2 ปี) — เข็มที่ตกตอนอายุ ≥ อายุสูงสุดที่รับรอง "ใช้วัคซีนนี้ไม่ได้"
+    // (แนวทางปีงบ 2570 หน้า 7: เด็กเริ่ม 1 ปี 11 เดือน เข็ม 2 ห่าง ≥ 8 สัปดาห์ แต่ไม่ควรให้ PNEUMOSIL) ผู้ใช้ยืนยัน 14 พ.ย. 2569
+    // เด็กยังต้องได้ครบจำนวนเข็ม → ยังแสดงวันที่เร็วที่สุดที่ทำได้ พร้อมคำเตือนให้ใช้ PCV ชนิดอื่นนอกแผนงานหรือปรึกษาแพทย์
+    // เปลี่ยนวัคซีนของแผนงานในอนาคต → ตั้ง env.product = { name, maxAgeMonths } (ไม่ต้องแก้กฎ)
+    const prod = env.product || {};
+    const prodName = prod.name || DEFAULT_PRODUCT.name;
+    const prodMax = Number.isFinite(prod.maxAgeMonths) ? prod.maxAgeMonths : DEFAULT_PRODUCT.maxAgeMonths;
+    const prodAdvice = prod.advice || DEFAULT_PRODUCT.advice;
     doses.forEach(d => {
       if (d.state === 'given' || !d.date) return;
+      if (ageMonths(birth, d.date) >= prodMax) {
+        d.productBlocked = true;
+        d.warnings = d.warnings.filter(w => !w.startsWith('เข็มนี้ตกตอนอายุ ≥ 24 เดือน'));   // ใช้ข้อความเฉพาะเรื่องวัคซีนแทน ไม่ซ้อนกัน
+        d.warnings.push('เข็มนี้ตกตอนอายุ ≥ ' + prodMax + ' เดือน — วัคซีน ' + prodName + ' ของแผนงานรับรองให้ใช้ก่อนอายุ ' + prodMax + ' เดือนเท่านั้น จึงให้เข็มนี้ด้วยวัคซีนนี้ไม่ได้ — ' + prodAdvice + ' · เด็กยังต้องได้ครบจำนวนเข็ม');
+        return;
+      }
       if (d.n === 2 && exemptD2) return;
       if (ageMonths(birth, d.date) >= 24 && !d.warnings.length) d.warnings.push('เข็มนี้ตกตอนอายุ ≥ 24 เดือน (ตาราง CPG ครอบคลุมถึง 23 เดือน) — ปรึกษาแพทย์ก่อนฉีดหรือนัด');
     });
-    const complete = !doses.some(d => d.state !== 'given');
-    return { ok: true, complete, unverifiedGap, startMonths: startM, gapDays, doses, cpgAlt: rule.cpgAlt };
+    const hrMode = !highRisk ? null : (hrStandard ? 'standard' : 'specialist');
+    // กลุ่มเสี่ยงสูงที่ไม่มีตาราง 3p+1 ให้คำนวณ: ไม่บอกว่า "ครบ" เองเด็ดขาด (แผนปกติ 2p+1 อาจไม่พอ) ต้องให้กุมารแพทย์ตัดสิน
+    const complete = hrMode === 'specialist' ? false : !doses.some(d => d.state !== 'given');
+    return {
+      ok: true, complete, unverifiedGap, startMonths: startM, gapDays, doses, cpgAlt: hrStandard ? {} : rule.cpgAlt,
+      highRisk: hrMode ? { schedule: '3p+1', mode: hrMode, message: hrMode === 'standard' ? HR_STANDARD : HR_SPECIALIST } : null,
+    };
   }
 
-  return { RULES, VISIT_AGE, VISIT_LABEL, VISIT_BAND_END, MIN_START_MONTHS, MAX_START_MONTHS, LATE_WARN_MONTHS, minGapDays, ageMonths, plan };
+  return { RULES, VISIT_AGE, VISIT_LABEL, VISIT_BAND_END, MIN_START_MONTHS, MAX_START_MONTHS, LATE_WARN_MONTHS, DEFAULT_PRODUCT, minGapDays, ageMonths, plan };
 });

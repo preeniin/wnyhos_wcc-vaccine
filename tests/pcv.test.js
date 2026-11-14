@@ -440,16 +440,48 @@ test('เข็มที่ตกตอนอายุ ≥ 24 เดือน �
   assert.equal(r.doses[2].state, 'planned');
   assert.ok(PCV.ageMonths(D(2025, 1, 4), r.doses[2].date) >= 24);
   assert.ok(has24(r.doses[2]), 'ต้องเตือนอายุ ≥ 24 เดือน');
-  // ผู้เริ่ม 19 เดือน เข็ม 2 ตอนอายุ 25 เดือน (ถึงกำหนดวันนี้) ไม่เตือน เพราะเป็นแถวที่ตัดสินใจไว้ว่าไม่เตือน
+  // ผู้เริ่ม 19 เดือน เข็ม 2 ตอนอายุ 25 เดือน (ถึงกำหนดวันนี้): เดิม (3 พ.ย.) ไม่เตือน — เปลี่ยนเมื่อ 14 พ.ย. 2569 ตามแนวทางปีงบ 2570:
+  // วัคซีนของแผนงาน (SII PNEUMOSIL) รับรองก่อนครบ 2 ปี เข็มนี้จึงใช้วัคซีนนี้ไม่ได้ → ต้องมีคำเตือนเฉพาะเรื่องวัคซีน
   const ex = PCV.plan({ birth: D(2024, 10, 1), visit: D(2026, 11, 4), history: { count: 1, startAge: 19 }, env });
   assert.equal(ex.doses[1].state, 'due');
-  assert.deepEqual(ex.doses[1].warnings, []);
+  assert.equal(ex.doses[1].productBlocked, true);
+  assert.equal(ex.doses[1].warnings.length, 1);
+  assert.match(ex.doses[1].warnings[0], /PNEUMOSIL/);
   // เข็มที่ตกก่อน 24 เดือนไม่เตือนข้อนี้
   const early = PCV.plan({ birth: D(2026, 3, 4), visit: D(2026, 11, 4), env });
   assert.ok(!early.doses.some(has24));
-  // ไม่เตือนซ้ำ: เข็มที่มีคำเตือนอื่นอยู่แล้ว (ล่าช้ามาก) ไม่ซ้อนข้อความอายุ ≥ 24 เดือน
+  // เข็มที่มีคำเตือนล่าช้าอยู่แล้ว และตกอายุ ≥ 24 เดือน: คำเตือนล่าช้าคงไว้ + คำเตือนเรื่องวัคซีน (เรื่องต่างกัน ซ้อนกันได้) แต่ไม่มีข้อความ "≥ 24 เดือน" ทั่วไปซ้ำอีกข้อ
   const late = PCV.plan({ birth: D(2024, 6, 4), visit: D(2026, 11, 4), history: { count: 1, startAge: 2 }, env });
-  assert.ok(late.doses[1].warnings.some(w => w.includes('ล่าช้า')) && !has24(late.doses[1]));
+  assert.ok(late.doses[1].warnings.some(w => w.includes('ล่าช้า')));
+  assert.equal(late.doses[1].warnings.filter(w => w.includes('≥ 24 เดือน')).length, 1,'ต้องมีข้อความ ≥ 24 เดือนเพียงข้อเดียว (ของวัคซีน)');
+  assert.ok(late.doses[1].warnings.some(w => w.includes('PNEUMOSIL')));
+});
+
+test('วัคซีนของแผนงาน: ตั้งค่าได้ที่เดียว (env.product) · ขอบ 23 เดือน 29 วัน ใช้ได้ / 24 เดือน 0 วัน ใช้ไม่ได้', () => {
+  assert.equal(PCV.DEFAULT_PRODUCT.name, 'SII PNEUMOSIL');
+  assert.equal(PCV.DEFAULT_PRODUCT.maxAgeMonths, 24);
+  assert.match(PCV.DEFAULT_PRODUCT.advice, /ที่อื่น/);   // คลินิกไม่มี PCV ชนิดอื่น แนะนำไปฉีดที่อื่น ไม่ส่งต่อ (14 พ.ย. 2569)
+  const hasProd = d => d.warnings.some(w => w.includes('PNEUMOSIL'));
+  // เริ่ม 22 เดือน: เข็ม 2 ถึงกำหนดวันนี้ (มีประวัติ) → ดูอายุของวันที่ฉีด
+  const at = (y, m, d) => PCV.plan({ birth: D(2024, 11, 4), visit: D(y, m, d), history: { count: 1, startAge: 22 }, env });
+  assert.equal(PCV.ageMonths(D(2024, 11, 4), D(2026, 11, 3)), 23);   // 23 เดือน 29 วัน
+  assert.ok(!hasProd(at(2026, 11, 3).doses[1]), '23 เดือน 29 วัน ยังใช้ PNEUMOSIL ได้');
+  assert.equal(PCV.ageMonths(D(2024, 11, 4), D(2026, 11, 4)), 24);   // ครบ 2 ปีพอดี
+  assert.ok(hasProd(at(2026, 11, 4).doses[1]), 'ครบ 24 เดือนแล้วใช้ไม่ได้');
+  // ยังแสดงวันที่ (เด็กยังต้องได้ครบเข็ม ด้วยวัคซีนชนิดอื่น)
+  assert.ok(at(2026, 11, 4).doses[1].date);
+
+  // เปลี่ยนวัคซีนของแผนงาน (สมมติ รับรองถึง 60 เดือน): เข็มเดิมไม่ติดเรื่องวัคซีน; เปลี่ยนชื่อ/อายุสูงสุดได้โดยไม่แก้กฎ
+  const bigEnv = { ...env, product: { name: 'PCV-ใหม่', maxAgeMonths: 60 } };
+  const big = PCV.plan({ birth: D(2024, 11, 4), visit: D(2026, 11, 4), history: { count: 1, startAge: 22 }, env: bigEnv });
+  assert.ok(!big.doses[1].productBlocked);
+  const small = PCV.plan({ birth: D(2026, 3, 4), visit: D(2026, 11, 4), history: { count: 1, startAge: 5 }, env: { ...env, product: { name: 'PCV-ใหม่', maxAgeMonths: 9 } } });   // อายุ 8 เดือน: เข็ม 2 ถึงกำหนดวันนี้ ยังไม่เกิน 9; เข็ม 3 ตกหลัง 9 เดือน
+  assert.ok(small.doses.some(d => d.productBlocked && d.warnings.some(w => w.includes('PCV-ใหม่') && w.includes('9 เดือน'))));
+  // ข้อความคำแนะนำแก้ได้ผ่านค่าตั้งค่า (เช่น อนาคตคลินิกมี PCV ชนิดอื่นให้ฉีดเอง)
+  const adv = PCV.plan({ birth: D(2024, 11, 4), visit: D(2026, 11, 4), history: { count: 1, startAge: 22 }, env: { ...env, product: { advice: 'ฉีดเข็มนี้ที่คลินิกด้วย PCV13' } } });
+  assert.ok(adv.doses[1].warnings[0].includes('ฉีดเข็มนี้ที่คลินิกด้วย PCV13') && !adv.doses[1].warnings[0].includes('ที่อื่น'));
+  // ไม่ระบุ product → ใช้ค่าตั้งต้น (PNEUMOSIL 24 เดือน) ไม่ล้ม
+  assert.doesNotThrow(() => PCV.plan({ birth: D(2026, 3, 4), visit: D(2026, 11, 4), env: { findDate: env.findDate, weeksFor: env.weeksFor, pcvWeeks: env.pcvWeeks } }));
 });
 
 test('แก้ PCV_WEEKS ได้ที่เดียว: ถ้าเปลี่ยนเป็นเว้นสัปดาห์ เข็มเดี่ยวต้องตามสัปดาห์ใหม่', () => {

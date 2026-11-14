@@ -115,5 +115,23 @@
   },
   "H01": {
     "status": "unverified"
+  },
+  "R01": {
+    "status": "unverified"
+  },
+  "R02": {
+    "status": "unverified"
+  },
+  "R03": {
+    "status": "unverified"
+  },
+  "R04": {
+    "status": "unverified"
+  },
+  "R05": {
+    "status": "unverified"
+  },
+  "R06": {
+    "status": "unverified"
   }
 }

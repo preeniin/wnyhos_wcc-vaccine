@@ -37,4 +37,12 @@ add('D04', 'เข็ม 1 ฉีดเมื่อ 30 วันก่อน (�
 // 5) ใกล้วันหยุดปลายปี (วันนัดต้องเลี่ยงวันหยุด)
 add('H01', 'มารับบริการ พุธ 23 ธ.ค. 2569 อายุ 2 เดือน (นัดถัดไปคาบเกี่ยวช่วงปีใหม่)', { visit: '2026-12-23', birth: monthsBefore('2026-12-23', 2) });
 
+// 6) เด็กกลุ่มเสี่ยงสูง (สูตร 3p+1 ตาม CPG หน้า 8) — เพิ่ม 14 พ.ย. 2569
+add('R01', 'กลุ่มเสี่ยงสูง · ยังไม่เคยฉีด · อายุ 2 เดือน (ได้ครบ 4 เข็ม: รอบ 2, 4, 6 เดือน + กระตุ้น 1 ปี)', { birth: monthsBefore(VISIT, 2), highRisk: true });
+add('R02', 'กลุ่มเสี่ยงสูง · ยังไม่เคยฉีด · อายุ 3 เดือน', { birth: monthsBefore(VISIT, 3), highRisk: true });
+add('R03', 'กลุ่มเสี่ยงสูง · ยังไม่เคยฉีด · อายุ 5 เดือน (CPG ไม่มีตาราง 3p+1 ล่าช้า → แสดงแผนปกติ + ต้องให้กุมารแพทย์กำหนด)', { birth: monthsBefore(VISIT, 5), highRisk: true });
+add('R04', 'กลุ่มเสี่ยงสูง · เคยฉีด 1 เข็ม (เริ่มตอน 2 เดือน) · อายุ 5 เดือน', { birth: monthsBefore(VISIT, 5), highRisk: true, history: { count: 1, startAge: 2 } });
+add('R05', 'กลุ่มเสี่ยงสูง · เคยฉีด 2 เข็ม (เริ่มตอน 12 เดือน) · อายุ 20 เดือน (แผนปกติ "ครบ" แต่ต้องไม่ขึ้นว่าครบ)', { birth: monthsBefore(VISIT, 20), highRisk: true, history: { count: 2, startAge: 12 } });
+add('R06', 'กลุ่มเสี่ยงสูง · เจ้าหน้าที่ระบุว่าครบแล้ว · อายุ 10 เดือน', { birth: monthsBefore(VISIT, 10), highRisk: true, history: { complete: true } });
+
 module.exports = { cases, VISIT, parse };
