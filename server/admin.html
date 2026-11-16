@@ -346,6 +346,32 @@ main { max-width:1100px; margin:0 auto; padding:12px 36px; min-width:0; }
               </div>
             </div>
           </div>
+          <div class="card" style="margin-top:16px">
+            <h2>วันและเวลาเปิดให้บริการ</h2>
+            <p class="muted" style="margin:0 0 14px">ระบบนัดจะคำนวณวันนัดจาก <b>วันของสัปดาห์</b> นี้ (ร่วมกับ "สัปดาห์ที่เปิด" ของแต่ละช่วงอายุ) · เวลาที่เลือกใช้เป็นเวลาตั้งต้นของทุกช่วงอายุที่ไม่ได้ตั้งเวลาเฉพาะ · เลือกจากรายการเท่านั้น ป้องกันการพิมพ์ผิด</p>
+            <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
+              <div><label class="l" for="setDay">วันที่เปิดให้บริการ</label><select id="setDay" style="min-width:160px"></select></div>
+              <div><label class="l" for="setStart">เวลาเปิด</label><select id="setStart" style="min-width:110px"></select></div>
+              <div><label class="l" for="setEnd">เวลาปิด</label><select id="setEnd" style="min-width:110px"></select></div>
+            </div>
+            <p class="muted" style="margin:10px 0 0">หน้าเว็บจะแสดงเป็น: <b id="setSvcPreview"></b></p>
+            <div style="margin-top:12px"><button class="sm" id="setApplyAll" type="button">ใช้เวลานี้กับทุกช่วงอายุ (ล้างเวลาเฉพาะแถว)</button>
+            <span class="muted" style="margin-left:8px">ช่วงอายุที่ตั้งเวลาเฉพาะไว้ (เช่น รอบบ่าย) จะเปลี่ยนมาใช้เวลาของคลินิก — กดแล้วต้องกด "บันทึก" ด้วย</span></div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h2>วัคซีน PCV (เข็มเดี่ยว)</h2>
+            <p class="muted" style="margin:0 0 14px">PCV เข็มเดี่ยว = เข็ม PCV ที่ไม่ได้ไปพร้อมวัคซีนรอบปกติ · หน้าเว็บจะใช้ค่าเหล่านี้คำนวณวันนัด PCV เมื่อรีเฟรช</p>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div><span class="l">เปิดให้บริการ <span class="svcDay">วันพุธ</span> สัปดาห์ที่ (ของเดือน)</span>
+                <div id="setPcvWeeks" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+                  <label><input type="checkbox" value="1"> 1</label><label><input type="checkbox" value="2"> 2</label><label><input type="checkbox" value="3"> 3</label><label><input type="checkbox" value="4"> 4</label><label><input type="checkbox" value="5"> 5</label>
+                </div>
+                <p class="muted" style="margin:6px 0 0">ติ๊กครบทั้ง 5 = ทุกสัปดาห์ · ถ้าเว้นสัปดาห์ ให้ติ๊กเฉพาะสัปดาห์ที่เปิดจริง</p></div>
+              <div><label class="l" for="setPcvProduct">ชื่อวัคซีน PCV ที่ใช้</label><input id="setPcvProduct" maxlength="60" autocomplete="off" style="max-width:320px"></div>
+              <div><label class="l" for="setPcvMax">อายุสูงสุดที่ทะเบียนรับรอง (เดือน)</label><input id="setPcvMax" type="number" min="6" max="120" step="1" style="max-width:140px"><p class="muted" style="margin:6px 0 0">เข็มที่ตกอายุเกินนี้ ระบบจะขึ้นคำเตือนว่าใช้วัคซีนนี้ไม่ได้ (ปัจจุบัน 24 = ก่อนครบ 2 ปี)</p></div>
+              <div><label class="l" for="setPcvAdvice">ข้อความแนะนำเมื่อฉีด PCV ที่คลินิกไม่ได้</label><input id="setPcvAdvice" maxlength="200" autocomplete="off"></div>
+            </div>
+          </div>
         </div>
 
         <div id="tab-his" class="hidden">
@@ -398,7 +424,7 @@ const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAl
 const DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 let uid = 0;
 let vac = [], hol = [], origVac = [], origHol = [];
-let settings = { hospitalName: '', appTitle: '', clinicShort: '' }, origSettings = clone0(settings);
+let settings = { hospitalName: '', appTitle: '', clinicShort: '', serviceWeekday: 3, serviceStart: '8:00', serviceEnd: '11:30', pcvWeeks: [1,2,3,4,5], pcvProduct: '', pcvMaxAgeMonths: 24, pcvAdvice: '' }, origSettings = clone0(settings);
 function clone0(o) { return JSON.parse(JSON.stringify(o)); }
 let rev = { vaccines: 0, holidays: 0, settings: 0 };   // เลขรุ่นของแต่ละส่วนตอนที่โหลดมา — ส่งกลับตอนบันทึก ถ้ามีคนอื่นบันทึกไปก่อน server จะตอบ 409 (ไม่ทับงานของเขา)
 const open = new Set();
@@ -484,6 +510,8 @@ function vacIssues() {
     else if (seen[r.code]) add(`รหัสอายุ "${r.code}" ซ้ำกับแถวอื่น`); else seen[r.code] = 1;
     if (!r.name.trim()) add('ยังไม่ได้ใส่ชื่ออายุที่แสดง');
     if (!r.weeks.length) add('ไม่ได้เลือกสัปดาห์ที่เปิดให้บริการ');
+    if (r.time && !TIME_RE.test(r.time)) add(`เวลาให้บริการ "${r.time}" รูปแบบไม่ถูกต้อง — เปิดแถวนี้แล้วเลือกเวลาใหม่จากรายการ`);
+    else if (r.time && tmin(TIME_RE.exec(r.time)[1]) >= tmin(TIME_RE.exec(r.time)[2])) add('เวลาเริ่มต้องน้อยกว่าเวลาเลิก');
     if (!r.vaccines.some(v => v.name.trim())) add('ไม่มีวัคซีนในช่วงอายุนี้');
     r.vaccines.forEach(v => { if (BAD_ITEM.test(v.name) || BAD_ITEM.test(v.thai)) add('ชื่อวัคซีนมีอักขระที่ไม่อนุญาต (< > " ` \\ / |)'); });
     [r.name, r.time, r.schedule, r.special].forEach(x => { if (BAD.test(x || '')) add('มีอักขระที่ไม่อนุญาต (< > " ` \\)'); });
@@ -648,7 +676,7 @@ const bubOf = r => { // วงกลมอายุ: จากรหัส เ�
 function sumHTML(r, i, bad) {
   const chips = r.vaccines.filter(v => v.name.trim()).map(v => `<span class="chip ${v.type}${/^PCV/i.test(v.name) ? ' pcv' : ''}">${ics(v.type === 'oral' ? 'drop' : 'syringe')}${esc(v.name)}</span>`).join('') || '<span class="muted">— ไม่มีวัคซีน —</span>';
   const wk = [1, 2, 3, 4, 5].map(w => `<span class="${r.weeks.includes(w) ? 'on' : ''}">${w}</span>`).join('');
-  const second = bad ? `<span class="er">${ics('warn', 18)}มีจุดที่ต้องแก้ (กดเพื่อดู)</span>` : `<span>เวลา ${esc(r.time) || '—'} · วันพุธ</span>`;
+  const second = bad ? `<span class="er">${ics('warn', 18)}มีจุดที่ต้องแก้ (กดเพื่อดู)</span>` : `<span>เวลา ${esc(r.time || fmtRange(settings.serviceStart, settings.serviceEnd))} · วัน${DAYS[settings.serviceWeekday]}</span>`;
   return `<span class="g"><span class="grip" tabindex="0" role="button" title="ลากเพื่อเรียงลำดับ (หรือกดลูกศรขึ้น/ลงเมื่อโฟกัสอยู่)" aria-label="จัดลำดับแถว ${i + 1}">${ics('grip')}</span></span>`
     + `<div class="nm"><b class="t">${esc(r.name) || '(ไม่มีชื่อ)'}</b><span class="c">#${i + 1} · รหัส ${esc(r.code) || '—'}${rowDirty(r) ? ' · <b>แก้ไขแล้ว ยังไม่บันทึก</b>' : ''}</span><div class="chips">${chips}</div></div>`
     + `<div class="meta"><div class="wk">${wk}<em>${r.weeks.length ? 'สัปดาห์ที่ ' + r.weeks.join(', ') : ''}</em></div>${second}<span>${r.nextAge ? 'ถัดไป: ' + esc(r.nextAge) : 'เข็มสุดท้าย'}</span></div>`
@@ -720,6 +748,25 @@ function wireDrag(box, sum, r) {
 window.addEventListener('mouseup', () => { $$('.vrowbox').forEach(b => { if (dragId == null) b.draggable = false; }); });
 function buildEditor(r) {
   const ed = h('div', { class: 'ed' });
+  const timePicker = r => {
+    const m = TIME_RE.exec(r.time || ''), legacy = !!(r.time && !m);
+    const a = h('select'), b = h('select');
+    fillTimeSelect(a, m ? m[1] : '', 'ตามเวลาของคลินิก'); fillTimeSelect(b, m ? m[2] : '', null);
+    b.disabled = !m;
+    const upd = () => {
+      if (!a.value) { r.time = ''; b.disabled = true; b.value = ''; }
+      else {
+        b.disabled = false;
+        if (!b.value || tmin(b.value) <= tmin(a.value)) { const nx = TIME_OPTS.find(t => tmin(t) > tmin(a.value) && tmin(t) >= tmin(settings.serviceEnd)) || TIME_OPTS.find(t => tmin(t) > tmin(a.value)); b.value = nx || ''; }
+        r.time = b.value ? fmtRange(a.value, b.value) : '';
+      }
+      note.textContent = ''; touch(r);
+    };
+    a.addEventListener('change', upd); b.addEventListener('change', upd);
+    const note = h('div', { class: 'muted', style: 'margin-top:4px;color:#b45309' }, legacy ? `เวลาเดิม "${r.time}" อ่านไม่ได้ — กรุณาเลือกใหม่จากรายการ` : '');
+    return h('div', null, h('label', { class: 'l' }, 'เวลาให้บริการ (เว้นไว้ = ตามคลินิก ' + fmtRange(settings.serviceStart, settings.serviceEnd) + ')'),
+      h('div', { style: 'display:flex;gap:6px;align-items:center' }, a, h('span', null, '–'), b), note);
+  };
   const inp = (label, prop, extra) => {
     const w = h('div', null, h('label', { class: 'l' }, label), h('input', Object.assign({ value: r[prop] || '' }, extra || {})));
     w.querySelector('input').addEventListener('input', e => { r[prop] = prop === 'code' ? e.target.value.trim() : e.target.value; touch(r); });
@@ -728,7 +775,7 @@ function buildEditor(r) {
   ed.append(h('div', { class: 'grid' },
     inp('รหัสอายุ (เช่น 2m, 1y)', 'code', { maxlength: 12 }),
     inp('ชื่ออายุที่แสดง', 'name', { maxlength: 40 }),
-    inp('เวลาให้บริการ', 'time', { maxlength: 40, placeholder: '8:00-11:30น.' }),
+    timePicker(r),
     (() => {
       const sel = h('select', null, h('option', { value: '' }, '— ไม่มี (เข็มสุดท้าย) —'),
         vac.filter(x => x.id !== r.id && x.code).map(x => h('option', { value: x.code, selected: x.code === r.nextAge }, `${x.name || x.code} (${x.code})`)));
@@ -741,7 +788,7 @@ function buildEditor(r) {
     cb.addEventListener('change', () => { r.weeks = cb.checked ? [...new Set([...r.weeks, w])].sort() : r.weeks.filter(x => x !== w); l.classList.toggle('on', cb.checked); touch(r); });
     return l;
   }));
-  ed.append(h('div', { style: 'margin-top:12px' }, h('label', { class: 'l' }, 'วันพุธสัปดาห์ที่เปิดให้บริการ'), wrap));
+  ed.append(h('div', { style: 'margin-top:12px' }, h('label', { class: 'l' }, 'วัน' + DAYS[settings.serviceWeekday] + 'สัปดาห์ที่เปิดให้บริการ'), wrap));
   const sc = inp('ข้อความรอบ (เว้นว่าง = สร้างให้อัตโนมัติ)', 'schedule', { maxlength: 120 }); sc.style.marginTop = '10px'; ed.append(sc);
   const vs = h('div', { style: 'margin-top:10px' }, h('label', { class: 'l' }, 'วัคซีนในช่วงอายุนี้'));
   r.vaccines.forEach((v, j) => {
@@ -788,7 +835,7 @@ function renderHol() {
       row.querySelector('.m').textContent = mm ? MONTHS[+mm[2] - 1] : '—'; row.querySelector('.dd').textContent = mm ? +mm[3] : '—';
       row.querySelector('.dw').textContent = d < 0 ? '—' : DAYS[d];
       const same = r.date && hol.some(x => x !== r && x.date === r.date && x.name.trim() === 'ยกเลิก');
-      row.querySelector('.ef').innerHTML = d < 0 ? '<span class="tag other">—</span>' : cancel ? '<span class="tag cancel">ยกเลิกวันหยุด</span>' : same ? '<span class="tag cancel">ถูกยกเลิกโดยแถว "ยกเลิก"</span>' : d === 3 ? '<span class="tag wed">ตรงวันพุธ งดนัด</span>' : '<span class="tag other">ไม่ใช่วันพุธ (ไม่กระทบ)</span>';
+      row.querySelector('.ef').innerHTML = d < 0 ? '<span class="tag other">—</span>' : cancel ? '<span class="tag cancel">ยกเลิกวันหยุด</span>' : same ? '<span class="tag cancel">ถูกยกเลิกโดยแถว "ยกเลิก"</span>' : d === settings.serviceWeekday ? `<span class="tag wed">ตรงวัน${DAYS[settings.serviceWeekday]} งดนัด</span>` : `<span class="tag other">ไม่ใช่วัน${DAYS[settings.serviceWeekday]} (ไม่กระทบ)</span>`;
       row.querySelector('.d').style.borderColor = r.date ? '' : 'var(--danger)';
     };
     row.querySelector('.d').addEventListener('input', e => { r.txt = e.target.value; r.date = fromBE(e.target.value) || ''; paint(); updateAll(); });
@@ -880,10 +927,10 @@ function icsOpen(file, text) {
     h('p', { class: 'muted', style: 'margin:0' }, `ไฟล์ ${file} · ยังไม่มีอะไรถูกเขียนทับ — เลือก/ไม่เลือก และแก้ชื่อรายวันได้ แล้วกด "เพิ่มลงตาราง" จากนั้นยังตรวจ/แก้/ลบในตารางได้อีกครั้งก่อนกด "บันทึก"`),
     h('div', { class: 'sum2', id: 'icsSum' }),
     skNote.length ? h('div', { class: 'note', style: 'margin:0 0 10px' }, 'ข้ามไป: ' + skNote.join(' · ')) : null,
-    h('div', { class: 'ctl' }, years.length > 1 ? yr : null, q, h('label', { class: 'ck' }, wed, 'เฉพาะวันพุธ (วันที่กระทบการนัด)')),
+    h('div', { class: 'ctl' }, years.length > 1 ? yr : null, q, h('label', { class: 'ck' }, wed, 'เฉพาะวัน' + DAYS[settings.serviceWeekday] + ' (วันที่กระทบการนัด)')),
     h('div', { class: 'ctl' },
       h('button', { class: 'sm', onclick: pick(r => icsStatus(r).k === 'new') }, 'เลือกเฉพาะรายการใหม่'),
-      h('button', { class: 'sm', onclick: pick(r => icsStatus(r).k === 'new' && dow(r.date) === 3) }, 'เลือกเฉพาะรายการใหม่ที่ตรงวันพุธ'),
+      h('button', { class: 'sm', onclick: pick(r => icsStatus(r).k === 'new' && dow(r.date) === settings.serviceWeekday) }, 'เลือกเฉพาะรายการใหม่ที่ตรงวัน' + DAYS[settings.serviceWeekday]),
       h('button', { class: 'sm', onclick: pick(() => true) }, 'เลือกทั้งหมดที่แสดง'),
       h('button', { class: 'sm', onclick: pick(() => false) }, 'ไม่เลือกเลย')),
     h('div', { class: 'ics-list', id: 'icsList' }),
@@ -892,7 +939,7 @@ function icsOpen(file, text) {
   icsList();
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-const icsVisible = r => (!icsDoc.year || r.date.startsWith(icsDoc.year)) && (!icsDoc.q || r.name.toLowerCase().includes(icsDoc.q.trim().toLowerCase())) && (!icsDoc.onlyWed || dow(r.date) === 3);
+const icsVisible = r => (!icsDoc.year || r.date.startsWith(icsDoc.year)) && (!icsDoc.q || r.name.toLowerCase().includes(icsDoc.q.trim().toLowerCase())) && (!icsDoc.onlyWed || dow(r.date) === settings.serviceWeekday);
 function icsCounts() {
   const c = { new: 0, dup: 0, diff: 0, cancelled: 0 }; icsDoc.rows.forEach(r => { c[icsStatus(r).k]++; });
   const n = icsDoc.rows.filter(r => r.sel).length;
@@ -906,7 +953,7 @@ function icsList() {
     const tags = h('span', { class: 'st' });
     const paint = () => {
       const st = icsStatus(r), d = dow(r.date);
-      tags.replaceChildren(...[h('span', { class: 'tag ' + st.cls }, st.text), d === 3 ? h('span', { class: 'tag wed' }, 'ตรงวันพุธ') : null].filter(Boolean));
+      tags.replaceChildren(...[h('span', { class: 'tag ' + st.cls }, st.text), d === settings.serviceWeekday ? h('span', { class: 'tag wed' }, 'ตรงวัน' + DAYS[settings.serviceWeekday]) : null].filter(Boolean));
       row.classList.toggle('off', !r.sel);
     };
     const cb = h('input', { type: 'checkbox', checked: r.sel, 'aria-label': 'นำเข้า ' + r.name });
@@ -943,6 +990,15 @@ $('#icsFile').addEventListener('change', async e => {
 });
 
 /* ---------- สถานะรวม / แถบบันทึก ---------- */
+/* ---------- เวลา: เลือกจากรายการเท่านั้น (06:00–20:00 ทุก 15 นาที) ---------- */
+const TIME_OPTS = []; for (let m = 6 * 60; m <= 20 * 60; m += 15) TIME_OPTS.push(Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'));
+const tmin = t => { const [a, b] = t.split(':'); return Number(a) * 60 + Number(b); };
+const TIME_RE = /^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})น\.$/;
+const fmtRange = (a, b) => `${a}-${b}น.`;
+function fillTimeSelect(sel, value, blank) {
+  sel.replaceChildren(...(blank ? [h('option', { value: '' }, blank)] : []), ...TIME_OPTS.map(t => h('option', { value: t }, t + ' น.')));
+  sel.value = TIME_OPTS.includes(value) ? value : '';
+}
 /* ---------- ข้อมูลคลินิก ---------- */
 const SET_FIELDS = [['setApp', 'appTitle', 'ชื่อระบบ', 80], ['setHosp', 'hospitalName', 'ชื่อโรงพยาบาล', 80], ['setShort', 'clinicShort', 'ชื่อย่อคลินิก', 20]];
 function settingsIssues() {
@@ -953,6 +1009,12 @@ function settingsIssues() {
     else if (v.length > max) out.push({ id, msg: `${label}: ยาวเกิน ${max} ตัวอักษร` });
     else if (BAD.test(v)) out.push({ id, msg: `${label}: มีอักขระที่ไม่อนุญาต (< > " \` \\)` });
   });
+  if (tmin(settings.serviceStart) >= tmin(settings.serviceEnd)) out.push({ id: 'setEnd', msg: 'เวลาเปิดต้องน้อยกว่าเวลาปิด' });
+  if (!(settings.pcvWeeks || []).length) out.push({ id: 'setPcvWeeks', msg: 'สัปดาห์ที่ PCV เปิด: เลือกอย่างน้อย 1 สัปดาห์' });
+  const pv = (settings.pcvProduct || '').trim(), pa = (settings.pcvAdvice || '').trim(), pm = settings.pcvMaxAgeMonths;
+  if (!pv) out.push({ id: 'setPcvProduct', msg: 'ชื่อวัคซีน PCV: ห้ามเว้นว่าง' }); else if (pv.length > 60 || BAD.test(pv)) out.push({ id: 'setPcvProduct', msg: 'ชื่อวัคซีน PCV: ยาวเกิน 60 ตัวอักษรหรือมีอักขระที่ไม่อนุญาต' });
+  if (!pa) out.push({ id: 'setPcvAdvice', msg: 'ข้อความแนะนำ PCV: ห้ามเว้นว่าง' }); else if (pa.length > 200 || BAD.test(pa)) out.push({ id: 'setPcvAdvice', msg: 'ข้อความแนะนำ PCV: ยาวเกิน 200 ตัวอักษรหรือมีอักขระที่ไม่อนุญาต' });
+  if (!Number.isInteger(pm) || pm < 6 || pm > 120) out.push({ id: 'setPcvMax', msg: 'อายุสูงสุดของวัคซีน PCV: ต้องเป็นจำนวนเดือน 6–120' });
   return out;
 }
 function paintSettingsPreview() {
@@ -965,6 +1027,30 @@ function renderSettings() {
     const el = document.getElementById(id); el.value = settings[prop] || '';
     el.oninput = () => { settings[prop] = el.value; paintSettingsPreview(); updateAll(); };
   });
+  const dsel = $('#setDay'); dsel.replaceChildren(...[1, 2, 3, 4, 5, 6].map(d => h('option', { value: String(d) }, 'วัน' + DAYS[d]))); dsel.value = String(settings.serviceWeekday);
+  const ssel = $('#setStart'), esel = $('#setEnd'); fillTimeSelect(ssel, settings.serviceStart, null); fillTimeSelect(esel, settings.serviceEnd, null);
+  const paintSvc = () => { $('#setSvcPreview').textContent = `วัน${DAYS[settings.serviceWeekday]} เวลา ${fmtRange(settings.serviceStart, settings.serviceEnd)}`; document.querySelectorAll('.svcDay').forEach(e => { e.textContent = 'วัน' + DAYS[settings.serviceWeekday]; }); };
+  // เปลี่ยนวัน/เวลา → วาดตารางวัคซีนใหม่ เพื่อให้ป้ายในตัวแก้ไขแต่ละแถว (ชื่อวัน, เวลาตามคลินิก) ตรงกับค่าล่าสุด
+  dsel.onchange = () => { settings.serviceWeekday = Number(dsel.value); paintSvc(); renderVac(); updateAll(); };
+  ssel.onchange = () => { settings.serviceStart = ssel.value; paintSvc(); renderVac(); updateAll(); };
+  esel.onchange = () => { settings.serviceEnd = esel.value; paintSvc(); renderVac(); updateAll(); };
+  $('#setApplyAll').onclick = () => {
+    const n = vac.filter(r => r.time).length;
+    if (!n) return flash('ทุกช่วงอายุใช้เวลาของคลินิกอยู่แล้ว', true);
+    ask('ใช้เวลาของคลินิกกับทุกช่วงอายุ ?', `ล้างเวลาเฉพาะของ ${n} แถว ให้ใช้ ${fmtRange(settings.serviceStart, settings.serviceEnd)} ตามคลินิก (ยังไม่บันทึกจนกว่าจะกด "บันทึก")`, 'ใช้เวลาของคลินิก', () => { vac.forEach(r => { r.time = ''; touch(r); }); renderVac(); updateAll(); });
+  };
+  paintSvc();
+  const wk = $('#setPcvWeeks');
+  wk.querySelectorAll('input').forEach(cb => {
+    cb.checked = (settings.pcvWeeks || []).includes(Number(cb.value));
+    cb.onchange = () => { settings.pcvWeeks = [...wk.querySelectorAll('input:checked')].map(x => Number(x.value)); updateAll(); };
+  });
+  [['setPcvProduct', 'pcvProduct'], ['setPcvAdvice', 'pcvAdvice']].forEach(([id, prop]) => {
+    const el = document.getElementById(id); el.value = settings[prop] || '';
+    el.oninput = () => { settings[prop] = el.value; updateAll(); };
+  });
+  const mx = $('#setPcvMax'); mx.value = settings.pcvMaxAgeMonths;
+  mx.oninput = () => { settings.pcvMaxAgeMonths = mx.value === '' ? NaN : Number(mx.value); updateAll(); };
   paintSettingsPreview(); updateAll();
 }
 
@@ -994,7 +1080,7 @@ $('#save').addEventListener('click', async () => {
       const r = await api('PUT', '/api/admin/holidays', { holidays: sorted, baseRev: rev.holidays }); hol = withIds(r.holidays); origHol = clone(hol); rev = r.rev; saved.push('วันหยุด');
     }
     if (setDirty()) {
-      const r = await api('PUT', '/api/admin/settings', { settings: { appTitle: settings.appTitle, hospitalName: settings.hospitalName, clinicShort: settings.clinicShort }, baseRev: rev.settings });
+      const r = await api('PUT', '/api/admin/settings', { settings: { appTitle: settings.appTitle, hospitalName: settings.hospitalName, clinicShort: settings.clinicShort, serviceWeekday: settings.serviceWeekday, serviceStart: settings.serviceStart, serviceEnd: settings.serviceEnd, pcvWeeks: settings.pcvWeeks, pcvProduct: settings.pcvProduct, pcvMaxAgeMonths: settings.pcvMaxAgeMonths, pcvAdvice: settings.pcvAdvice }, baseRev: rev.settings });
       settings = clone(r.settings); origSettings = clone(r.settings); rev = r.rev; saved.push('ข้อมูลคลินิก');
     }
     renderVac(); renderHol(); renderSettings();

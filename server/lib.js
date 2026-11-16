@@ -22,11 +22,14 @@ function str(v, field, max, { allowEmpty = true, item = false } = {}) {
   return v;
 }
 
-function defaultScheduleText(weeks, time) {
-  return `วันพุธ สัปดาห์ที่ ${weeks.join(',')}${time ? ' เวลา ' + time : ''}`;
+const DAY_NAMES = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+// เวลาให้บริการของวัคซีนแต่ละช่วงอายุ: เว้นว่าง (= ตามเวลาของคลินิก) หรือรูปแบบ "8:00-11:30น." เท่านั้น — กันพิมพ์มั่ว
+const TIME_RANGE_RE = /^([01]?\d|2[0-3]):([0-5]\d)\s*-\s*([01]?\d|2[0-3]):([0-5]\d)\s*(?:น\.?)?$/;   // รับรูปแบบใกล้เคียงแล้วปรับให้เป็นมาตรฐานเดียว
+function defaultScheduleText(weeks, time, weekday) {
+  return `วัน${DAY_NAMES[Number.isInteger(weekday) ? weekday : 3]} สัปดาห์ที่ ${weeks.join(',')}${time ? ' เวลา ' + time : ''}`;
 }
 
-function validateVaccines(input) {
+function validateVaccines(input, opts) {
   if (!Array.isArray(input)) throw new ValidationError('vaccines ต้องเป็นรายการ');
   if (input.length === 0) throw new ValidationError('ต้องมีอย่างน้อย 1 ช่วงอายุ (กันลบทั้งตารางโดยไม่ตั้งใจ)');
   if (input.length > 100) throw new ValidationError('มีช่วงอายุได้ไม่เกิน 100 แถว');
@@ -56,9 +59,15 @@ function validateVaccines(input) {
     if (weeks.length === 0 || weeks.some(w => !Number.isInteger(w) || w < 1 || w > 5)) {
       throw new ValidationError(`${at} สัปดาห์ที่เปิด: เลือก 1–5 อย่างน้อย 1 สัปดาห์`);
     }
-    const time = str(r.time, `${at} เวลา`, 40);
+    let time = str(r.time, `${at} เวลา`, 40);
+    if (time) {
+      const m = TIME_RANGE_RE.exec(time);
+      if (!m) throw new ValidationError(`${at} เวลา: ต้องเลือกจากรายการ (รูปแบบ 8:00-11:30น.) หรือเว้นว่างเพื่อใช้เวลาของคลินิก`);
+      if (Number(m[1]) * 60 + Number(m[2]) >= Number(m[3]) * 60 + Number(m[4])) throw new ValidationError(`${at} เวลา: เวลาเริ่มต้องน้อยกว่าเวลาเลิก`);
+      time = `${Number(m[1])}:${m[2]}-${Number(m[3])}:${m[4]}น.`;
+    }
     let schedule = str(r.schedule, `${at} ข้อความรอบ`, 120);
-    if (!schedule) schedule = defaultScheduleText(weeks, time);
+    if (!schedule) schedule = defaultScheduleText(weeks, time, opts && opts.serviceWeekday);
     return {
       code, name, vaccines, schedule, weeks, time,
       nextAge: str(r.nextAge, `${at} อายุถัดไป`, 12),
@@ -156,17 +165,47 @@ function parseHolidaysCsv(text) {
 
 // ---------- ข้อมูลคลินิก (แสดงบนหน้าเว็บ) ----------
 // ค่าตั้งต้น = ค่าที่เคยฝังใน index.html — หน้าเว็บมีค่าเดียวกันฝังไว้เป็น fallback เสมอ (เช่น GitHub Pages ที่ไม่มี server)
-const DEFAULT_SETTINGS = { hospitalName: 'โรงพยาบาลวังน้ำเย็น', appTitle: 'ระบบนัดหมายวัคซีน WCC', clinicShort: 'WCC' };
+const DEFAULT_SETTINGS = {
+  hospitalName: 'โรงพยาบาลวังน้ำเย็น', appTitle: 'ระบบนัดหมายวัคซีน WCC', clinicShort: 'WCC',
+  // PCV: สัปดาห์ของเดือนที่ "PCV เข็มเดี่ยว" (ไม่ไปพร้อมวัคซีนอื่น) เปิดให้บริการ (ทุกวันพุธ = 1–5) + วัคซีนที่ใช้ + อายุสูงสุดที่ทะเบียนรับรอง (เดือน)
+  // วัน/เวลาเปิดให้บริการของคลินิก (0=อาทิตย์ … 6=เสาร์) + เวลาตั้งต้นของทุกช่วงอายุที่ไม่ได้ตั้งเวลาเฉพาะ
+  serviceWeekday: 3, serviceStart: '8:00', serviceEnd: '11:30',
+  pcvWeeks: [1, 2, 3, 4, 5], pcvProduct: 'SII PNEUMOSIL', pcvMaxAgeMonths: 24,
+  pcvAdvice: 'แนะนำผู้ปกครองไปฉีดเข็มนี้ที่อื่นด้วย PCV ชนิดอื่น (คลินิกไม่มี PCV ชนิดอื่น และไม่มีการส่งต่อ)',
+};
 function validateSettings(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ValidationError('settings: รูปแบบไม่ถูกต้อง');
+  const D = DEFAULT_SETTINGS;
+  // ฟิลด์ PCV เป็นของใหม่: ไม่ส่งมา (ไคลเอนต์/สำรองรุ่นเก่า) = ใช้ค่าตั้งต้น แต่ถ้าส่งมาต้องถูกต้อง
+  let weeks = input.pcvWeeks === undefined ? D.pcvWeeks : input.pcvWeeks;
+  if (!Array.isArray(weeks) || !weeks.length || weeks.some(w => !Number.isInteger(w) || w < 1 || w > 5)) throw new ValidationError('สัปดาห์ที่ PCV เปิด: เลือกอย่างน้อย 1 สัปดาห์ (สัปดาห์ที่ 1–5 ของเดือน)');
+  weeks = [...new Set(weeks)].sort((x, y) => x - y);
+  const maxAge = input.pcvMaxAgeMonths === undefined ? D.pcvMaxAgeMonths : input.pcvMaxAgeMonths;
+  if (!Number.isInteger(maxAge) || maxAge < 6 || maxAge > 120) throw new ValidationError('อายุสูงสุดของวัคซีน PCV: ต้องเป็นจำนวนเดือน 6–120');
+  const wd = input.serviceWeekday === undefined ? D.serviceWeekday : input.serviceWeekday;
+  if (!Number.isInteger(wd) || wd < 1 || wd > 6) throw new ValidationError('วันที่เปิดให้บริการ: เลือกจันทร์–เสาร์');
+  const tm = (v, def, label) => {
+    const x = v === undefined ? def : v;
+    const m = typeof x === 'string' ? /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(x.trim()) : null;
+    if (!m) throw new ValidationError(`${label}: ต้องเลือกเวลาจากรายการ`);
+    return Number(m[1]) + ':' + m[2];
+  };
+  const st = tm(input.serviceStart, D.serviceStart, 'เวลาเปิดให้บริการ'), en = tm(input.serviceEnd, D.serviceEnd, 'เวลาปิดให้บริการ');
+  const mins = t => { const [a, b] = t.split(':'); return Number(a) * 60 + Number(b); };
+  if (mins(st) >= mins(en)) throw new ValidationError('เวลาเปิดต้องน้อยกว่าเวลาปิด');
   return {
+    serviceWeekday: wd, serviceStart: st, serviceEnd: en,
     hospitalName: str(input.hospitalName, 'ชื่อโรงพยาบาล', 80, { allowEmpty: false }),
     appTitle: str(input.appTitle, 'ชื่อระบบ (หัวหน้าเว็บ)', 80, { allowEmpty: false }),
     clinicShort: str(input.clinicShort, 'ชื่อย่อคลินิก', 20, { allowEmpty: false }),
+    pcvWeeks: weeks,
+    pcvProduct: input.pcvProduct === undefined ? D.pcvProduct : str(input.pcvProduct, 'ชื่อวัคซีน PCV', 60, { allowEmpty: false }),
+    pcvMaxAgeMonths: maxAge,
+    pcvAdvice: input.pcvAdvice === undefined ? D.pcvAdvice : str(input.pcvAdvice, 'ข้อความแนะนำเมื่อฉีด PCV ที่คลินิกไม่ได้', 200, { allowEmpty: false }),
   };
 }
 
 module.exports = {
-  ValidationError, validateVaccines, validateHolidays, validateSettings, DEFAULT_SETTINGS,
+  ValidationError, DAY_NAMES, TIME_RANGE_RE, validateVaccines, validateHolidays, validateSettings, DEFAULT_SETTINGS,
   vaccinesToCsv, holidaysToCsv, parseVaccinesCsv, parseHolidaysCsv, parseCsvRow,
 };

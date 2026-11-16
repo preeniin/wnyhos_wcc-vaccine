@@ -14,7 +14,7 @@ function loadEnv() {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/\r\n/g, '\n');
   const grab = (re, n) => { const m = html.match(re); assert.ok(m, 'ไม่พบ ' + n + ' ใน index.html'); return m[0]; };
   const code = [
-    'let dynamicHolidays = {}; let dynamicHolidayYears = new Set(); let vaccineSchedules = {};',
+    'let dynamicHolidays = {}; let dynamicHolidayYears = new Set(); let vaccineSchedules = {}; let SERVICE_DAY = 3;',
     grab(/function parseCsvRow\(row\) \{[\s\S]*?\n        \}\n/, 'parseCsvRow'),
     grab(/function applyVaccinesCsv\(data\) \{[\s\S]*?\n        \}\n/, 'applyVaccinesCsv'),
     grab(/function applyHolidaysCsv\(data\) \{[\s\S]*?\n        \}\n/, 'applyHolidaysCsv'),

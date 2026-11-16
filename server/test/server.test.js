@@ -169,7 +169,7 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
   const pub = await fetch(base + '/data/settings.json');
   assert.equal(pub.status, 200);
   const def = await pub.json();
-  assert.deepEqual(def, { hospitalName: 'โรงพยาบาลวังน้ำเย็น', appTitle: 'ระบบนัดหมายวัคซีน WCC', clinicShort: 'WCC' });
+  assert.deepEqual(def, L.DEFAULT_SETTINGS);
 
   const body = JSON.stringify({ settings: { hospitalName: 'รพ.ทดสอบ', appTitle: 'นัดวัคซีนทดสอบ', clinicShort: 'TST' } });
   assert.equal((await fetch(base + '/api/admin/settings', { method: 'PUT', headers: J, body })).status, 401, 'ไม่ login ต้องแก้ไม่ได้');
@@ -180,6 +180,14 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
     { hospitalName: '<script>', appTitle: 'x', clinicShort: 'x' },            // XSS
     { hospitalName: 'x', appTitle: 'x'.repeat(81), clinicShort: 'x' },        // ยาวเกิน
     { hospitalName: 'x', appTitle: 'x', clinicShort: 'ยาวเกินยี่สิบตัวอักษรแน่นอนแน่นอน' },
+    { ...def, pcvWeeks: [] },                 // PCV: ไม่เลือกสัปดาห์เลย
+    { ...def, pcvWeeks: [1, 6] },             // PCV: สัปดาห์นอกช่วง 1–5
+    { ...def, pcvMaxAgeMonths: 2 },           // PCV: อายุสูงสุดต่ำเกิน
+    { ...def, pcvProduct: '<b>' },            // PCV: อักขระต้องห้าม
+    { ...def, serviceWeekday: 0 },            // วันให้บริการ: อาทิตย์ไม่อนุญาต
+    { ...def, serviceWeekday: 'พุธ' },        // วันให้บริการ: ต้องเป็นตัวเลข
+    { ...def, serviceStart: '12:00', serviceEnd: '9:00' },   // เวลาเปิดต้องก่อนเวลาปิด
+    { ...def, serviceStart: '8.00' },         // เวลา: รูปแบบผิด
   ]) {
     const r = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: bad }) });
     assert.equal(r.status, 400, JSON.stringify(bad));
@@ -188,7 +196,28 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
 
   const ok = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body });
   assert.equal(ok.status, 200);
-  assert.deepEqual(await (await fetch(base + '/data/settings.json')).json(), { hospitalName: 'รพ.ทดสอบ', appTitle: 'นัดวัคซีนทดสอบ', clinicShort: 'TST' });
+  // ไม่ส่งฟิลด์ PCV (ไคลเอนต์รุ่นเก่า) → ใช้ค่าตั้งต้น
+  assert.deepEqual(await (await fetch(base + '/data/settings.json')).json(), { ...def, hospitalName: 'รพ.ทดสอบ', appTitle: 'นัดวัคซีนทดสอบ', clinicShort: 'TST' });
+  // ตั้งค่า PCV เข็มเดี่ยว: เว้นสัปดาห์ + ชื่อวัคซีน + อายุสูงสุด
+  const pcv = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: { ...def, clinicShort: 'TST', pcvWeeks: [3, 1, 3], pcvProduct: 'PCV-X', pcvMaxAgeMonths: 36 } }) });
+  assert.equal(pcv.status, 200);
+  const got = await (await fetch(base + '/data/settings.json')).json();
+  assert.deepEqual(got.pcvWeeks, [1, 3]);
+  // วัน/เวลาให้บริการ: ตั้งเป็นพฤหัส 9:00–12:00 แล้วข้อความรอบอัตโนมัติของแถวใหม่ต้องใช้ชื่อวันตามที่ตั้ง + เวลาของวัคซีนต้องรูปแบบมาตรฐาน
+  const svc = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: { ...def, clinicShort: 'TST', serviceWeekday: 4, serviceStart: '09:00', serviceEnd: '12:00' } }) });
+  assert.equal(svc.status, 200);
+  const g2 = await (await fetch(base + '/data/settings.json')).json();
+  assert.equal(g2.serviceWeekday, 4); assert.equal(g2.serviceStart, '9:00'); assert.equal(g2.serviceEnd, '12:00');
+  const vacs = (await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).vaccines;
+  const mk = time => vacs.map((x, i) => i === 0 ? { ...x, schedule: '', time } : x);
+  const okV = await fetch(base + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: mk('9:00 - 11:30 น') }) });
+  assert.equal(okV.status, 200);
+  const v0 = (await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).vaccines[0];
+  assert.equal(v0.time, '9:00-11:30น.'); assert.match(v0.schedule, /^วันพฤหัสบดี /);
+  for (const bad of ['เช้า', '8:00', '12:00-9:00', '25:00-26:00']) {
+    assert.equal((await fetch(base + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: mk(bad) }) })).status, 400, 'เวลา ' + bad);
+  }
+  await fetch(base + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: vacs }) });   // คืนข้อมูลวัคซีนเดิม assert.equal(got.pcvProduct, 'PCV-X'); assert.equal(got.pcvMaxAgeMonths, 36);
   assert.equal((await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).settings.clinicShort, 'TST');
   assert.match(fs.readFileSync(path.join(dataDir, 'audit.log'), 'utf8'), /save clinic settings/);
   // คืนค่าเดิม ไม่ให้กระทบเทสต์อื่น
@@ -383,7 +412,7 @@ test('store.json รุ่นเก่า (ไม่มี settings) → เต�
 test('อัปเกรดจากข้อมูลบนเซิร์ฟเวอร์รุ่นก่อน (store.json ไม่มี rev/updatedBy/settings): ใช้งานเต็มรูปแบบ ไม่เสียข้อมูลเดิม', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wcc-upg-'));
   const prev = { version: 1, updatedAt: '2026-11-03T00:00:00.000Z',
-    vaccines: [{ code: '2m', name: '2 เดือน', vaccines: [{ name: 'DTP', thai: 'ดีทีพี', type: 'injection' }, { name: 'PCV', thai: 'นิวโมค็อกคัส', type: 'injection' }], schedule: '', weeks: [1, 3], time: '8:00', nextAge: '', special: 'ข้อมูลเดิมบนเซิร์ฟเวอร์' }],
+    vaccines: [{ code: '2m', name: '2 เดือน', vaccines: [{ name: 'DTP', thai: 'ดีทีพี', type: 'injection' }, { name: 'PCV', thai: 'นิวโมค็อกคัส', type: 'injection' }], schedule: '', weeks: [1, 3], time: '8:00-11:30น.', nextAge: '', special: 'ข้อมูลเดิมบนเซิร์ฟเวอร์' }],
     holidays: [{ date: '2026-07-20', name: 'ทดสอบเดิม' }], settings: { hospitalName: 'รพ.เดิม', appTitle: 'ชื่อเดิม', clinicShort: 'OLD' } };  // รูปแบบของ v52: มี settings แต่ไม่มี rev/updatedBy
   fs.writeFileSync(path.join(dir, 'store.json'), JSON.stringify(prev));
   fs.mkdirSync(path.join(dir, 'backups'), { recursive: true });

@@ -252,7 +252,7 @@ const server = http.createServer(async (req, res) => {
         let old; try { old = JSON.parse(fs.readFileSync(full, 'utf8')); } catch (e) { throw new L.ValidationError('ไฟล์สำรองเสีย อ่านไม่ได้'); }
         if (!old || typeof old !== 'object' || Array.isArray(old)) throw new L.ValidationError('ไฟล์สำรองเสีย (เนื้อหาไม่ใช่ข้อมูลที่ถูกต้อง)');
         // ตรวจด้วยกติกาเดียวกับการบันทึกปกติ: ไฟล์สำรองที่ไม่ผ่านจะไม่ถูกนำมาใช้
-        const vaccines = L.validateVaccines(old.vaccines), holidays = L.validateHolidays(old.holidays);
+        const vaccines = L.validateVaccines(old.vaccines, store.settings), holidays = L.validateHolidays(old.holidays);
         const settings = old.settings ? L.validateSettings(old.settings) : store.settings; // สำรองรุ่นเก่าไม่มีข้อมูลคลินิก → คงค่าปัจจุบัน
         saveStore(Object.assign({}, store, { vaccines, holidays, settings, rev: bumpRev('vaccines', 'holidays', 'settings') }), `restore backup ${f}`, actorOf(req)); // saveStore สำรองค่าปัจจุบันไว้ก่อนเสมอ → ย้อนกลับการคืนค่าได้
         return json(res, 200, { ok: true, vaccines: store.vaccines, holidays: store.holidays, settings: store.settings, rev: store.rev, updatedAt: store.updatedAt });
@@ -267,7 +267,7 @@ const server = http.createServer(async (req, res) => {
       if (m === 'PUT' && p === '/api/admin/vaccines') {
         const b = await readBody(req);
         if (revConflict(res, b, 'vaccines')) return;
-        const v = L.validateVaccines(b.vaccines);
+        const v = L.validateVaccines(b.vaccines, store.settings);
         saveStore(Object.assign({}, store, { vaccines: v, rev: bumpRev('vaccines') }), `save vaccines (${v.length} rows)`, actorOf(req));
         return json(res, 200, { ok: true, vaccines: store.vaccines, rev: store.rev, updatedAt: store.updatedAt });
       }

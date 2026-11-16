@@ -13,7 +13,7 @@ function loadEnv() {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/\r\n/g, '\n');
   const grab = re => { const m = html.match(re); assert.ok(m, 'ไม่พบฟังก์ชันใน index.html'); return m[0]; };
   const code = [
-    'let dynamicHolidays = {}; let dynamicHolidayYears = new Set(); let vaccineSchedules = {};',
+    'let dynamicHolidays = {}; let dynamicHolidayYears = new Set(); let vaccineSchedules = {}; let SERVICE_DAY = 3;',
     grab(/function parseCsvRow\(row\) \{[\s\S]*?\n        \}\n/), grab(/function applyVaccinesCsv\(data\) \{[\s\S]*?\n        \}\n/),
     grab(/function applyHolidaysCsv\(data\) \{[\s\S]*?\n        \}\n/), grab(/const fixedHolidays = \{.*\};\n/),
     grab(/const buddhistHolidayOffsets = \{[\s\S]*?\n        \};\n/), grab(/function getHolidayForDate\(date\) \{[\s\S]*?\n        \}\n/),

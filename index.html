@@ -345,6 +345,37 @@
            ทำให้การ์ดแถวที่สองถูกบีบและปฏิทินด้านล่างซ้อนทับ — auto-fit: ถ้าการ์ดบางใบถูกซ่อน ใบที่เหลือขยายเต็มแถวเอง */
         .wcc-rgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; align-items: stretch; }
         .wcc-rgrid > div { min-width: 0; }
+        /* การ์ดแจ้งเตือน Rota ต่อจากการ์ดอายุสัปดาห์ (จอ >=768px) คำแนะนำถูกดันลงไปหลังสุด */
+        /* คำแนะนำ: โชว์ตัวอย่างบรรทัดเดียว (ตัดด้วย …) — ปุ่มคัดลอกยังคัดลอกข้อความเต็ม (innerText ไม่ได้รับผลจากการตัดแสดงผล) */
+        #modalAgeSection #staffText { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; font-size: 12px; line-height: 1.45; margin: 0; }
+        #modalAgeSection > .grid > div:nth-child(3) { padding-top: 4px !important; padding-bottom: 8px !important; }
+        /* คำแนะนำ: แถวเดียว — หัวข้อ | ตัวอย่างข้อความ (ตัดด้วย …) | ปุ่มคัดลอก */
+        @media (min-width: 768px) {
+            #modalAgeSection > .grid > div:nth-child(3) { flex-direction: row !important; align-items: center; gap: 12px; padding-top: 6px !important; padding-bottom: 8px !important; }
+            #modalAgeSection > .grid > div:nth-child(3) > .mb-1\.5 { display: contents; }
+            #modalAgeSection > .grid > div:nth-child(3) > .mb-1\.5 > span { order: 0; flex: none; white-space: nowrap; }
+            #modalAgeSection > .grid > div:nth-child(3) > .mb-1\.5 > button { order: 2; flex: none; margin-left: 4px; }
+            #modalAgeSection #staffText { order: 1; flex: 1 1 0; min-width: 0; }
+        }
+        #modalRotaAlert { order: 2; animation: wccAlertBlink 1s ease-in-out infinite; }
+        @keyframes wccAlertBlink { 0%, 100% { background: #dc2626; box-shadow: 0 4px 0 #7f1d1d, 0 0 0 0 rgba(220,38,38,.8); } 50% { background: #7f1d1d; box-shadow: 0 4px 0 #450a0a, 0 0 18px 6px rgba(220,38,38,.75); } }
+        @media (prefers-reduced-motion: reduce) { #modalRotaAlert { animation-duration: 2.4s; } }
+        #modalAgeSection > .grid > div:nth-child(3) { order: 3; }
+        @media (min-width: 768px) { #modalRotaAlert { flex: 1 1 0; min-width: 300px; } }
+        #modalRotaAlert { display: flex; flex-direction: row; align-items: center; gap: 18px; padding: 8px 18px !important; }
+        #modalRotaAlert .ra-l { flex: 1 1 0; min-width: 0; }
+        #modalRotaAlert .ra-r { flex: 1.3 1 0; min-width: 0; border-left: 2px solid rgba(255,255,255,.45); padding-left: 16px; display: flex; flex-direction: column; gap: 6px; }
+        #modalRotaAlert .ra-r .ra-b { margin-top: 0; }
+        @media (max-width: 1099px) { #modalRotaAlert { flex-wrap: wrap; } #modalRotaAlert .ra-r { border-left: 0; padding-left: 0; flex-basis: 100%; } }
+        #modalRotaAlert:is(.hidden) { display: none; }
+        #modalRotaAlert .ra-t { font-size: 17px; font-weight: 900; line-height: 1.25; }
+        #modalRotaAlert .ra-b { font-size: 14px; font-weight: 700; line-height: 1.5; margin-top: 3px; }
+        /* กดดูแผน PCV ทั้งหมด (details เปิด): การ์ดยืดแยกกัน ไม่ลากการ์ดข้างเคียงให้สูงตาม */
+        .wcc-rgrid:has(details[open]) { align-items: start; }
+        .wcc-rgrid:has(details[open]) > div { height: auto !important; }
+        /* กล่องอายุ 2 ใบสูงเท่ากัน (ใบซ้ายมีเงา 4px ใบขวาจึงใส่เงาเท่ากัน) */
+        #modalAgeSection > .grid > div:nth-child(1), #modalAgeSection > .grid > div:nth-child(2) { align-self: stretch; box-shadow: 0 4px 0 rgba(0,0,0,.2); }
+        html[data-theme="lime"] #modalAgeSection > .grid > div:nth-child(2) { box-shadow: 0 4px 0 #5d7a12; }
         .wcc-rgrid > div.hidden { display: none; }
         /* จอกลาง 700–1339px (เช่น iPad): ตาราง 2x2 — แถวบน วันนัด | ต้องฉีดวันนี้, แถวล่าง PCV | ปฏิทิน */
         @media (min-width: 700px) and (max-width: 1099px) { .wcc-rgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -362,7 +393,8 @@
             /* ส่วนสรุปอายุเรียง 2 แถว: กล่องอายุแถวบน / คำแนะนำแถวล่าง ให้ความสูงใกล้เคียงปฏิทินข้างเคียง ไม่มีที่ว่างลอย */
             .wcc-toprow > #modalAgeSection > .grid { flex-wrap: wrap; align-content: flex-start; }
             .wcc-toprow > #modalAgeSection > .grid > div:nth-child(3) { flex: 1 1 100%; }
-            .wcc-toprow > #modalCalendarArea { flex: 0 0 236px; width: 236px; max-width: none; margin: 0 0 0 auto; align-self: flex-start; }
+            .wcc-toprow > #modalCalendarArea:not(.hidden) { flex: 0 0 236px; width: 236px; max-width: none; margin: 0 0 0 auto; align-self: stretch; display: flex; flex-direction: column; }
+            .wcc-toprow > #modalCalendarArea > div { flex: 1; }
             .wcc-toprow #modalCalendarArea > div > div:first-child { padding: 2px 8px; }
             .wcc-toprow #modalCalendarArea h3 { font-size: 10px; }
             .wcc-toprow #calendarContainer { padding: 4px 6px 6px; }
@@ -608,7 +640,7 @@
         <a id="adminLinkMobile" href="./admin" style="display:none" class="bg-teal-800 bg-opacity-40 text-white rounded-lg font-bold shadow border border-white border-opacity-40"> ⚙️ ตั้งค่า </a>
         </div>
     </div>
-    <div class="wcc-ver-row no-print"><div class="wcc-ver"><span>✨ เวอร์ชัน 61 · 14 พ.ย. 2569 15:41</span><span class="text-teal-100" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span></div></div>
+    <div class="wcc-ver-row no-print"><div class="wcc-ver"><span>✨ เวอร์ชัน 62 · 16 พ.ย. 2569 09:34</span><span class="text-teal-100" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span></div></div>
    </div>
   </div>
 
@@ -828,7 +860,7 @@
                     <span class="mr-2 text-2xl">🖨️</span> ตารางให้บริการคลินิกวัคซีนเด็ก 3 ปี
                 </h2>
                 <p class="text-xs md:text-sm text-gray-600 font-medium mt-1">
-                    ตารางล่วงหน้า 3 ปี หักวันหยุดและคำนวณตามรอบวันพุธเรียบร้อยแล้ว (จัดรูปแบบสำหรับการพิมพ์ / PDF)
+                    ตารางล่วงหน้า 3 ปี หักวันหยุดและคำนวณตามรอบวัน<span data-service-day>พุธ</span>เรียบร้อยแล้ว (จัดรูปแบบสำหรับการพิมพ์ / PDF)
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -892,11 +924,13 @@
                 </div>
                 <div class="col-span-2 bg-gray-50 border border-gray-200 p-2.5 rounded-lg flex flex-col justify-between shadow-inner">
                     <div class="flex justify-between items-center mb-1.5">
-                        <span class="text-gray-700 font-black text-xs flex items-center">📝 คำแนะนำ </span>
+                        <span class="text-gray-700 font-black text-xs flex items-center">📝 คำแนะนำสำหรับลง HOSxP </span>
                         <button onclick="copyStaffText()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm border border-blue-700">📋 คัดลอกข้อความ</button>
                     </div>
                     <div id="staffText" class="text-[10px] text-gray-500 leading-tight">นั่งสังเกตอาการ 30 นาที หลังจากฉีดวัคซีน หากมีผื่นขึ้นตามร่างกาย ร้องกวนมาก ให้แจ้งเจ้าหน้าที่ เมื่อกลับบ้าน หากมีไข้ ให้เช็ดตัวลดไข้ รับประทานยาลดไข้ทุก 4-6 ชั่วโมง ถ้ามีอาการบวม แดง บริเวณที่ฉีดวัคซีนให้ประคบเย็น โดยใช้ผ้าห่อน้ำแข็ง /ไอซ์แพ็ค ประคบ ถ้ามีไข้สูงเกิน 3 วัน ให้กลับมาพบแพทย์<br>แผนการดูแลต่อเนื่อง<br>เฝ้าระวังอาการ AEFI หลังฉีดวัคซีน</div>
                 </div>
+                <!-- การ์ดแจ้งเตือน Rota (แดง) — แสดงเมื่อวัคซีนวันนี้มี Rota; ย้ายไปต่อท้ายการ์ดสัปดาห์ด้วย order -->
+                <div id="modalRotaAlert" class="hidden col-span-2 rounded-lg p-2.5 text-white shadow-md" style="background:#dc2626;border:2px solid #7f1d1d;align-self:stretch;"></div>
             </div>
         </div>
         </div>
@@ -1256,6 +1290,21 @@
          * ใช้ textContent เท่านั้น (ไม่ใช้ innerHTML) กันข้อความแปลกปลอม
          */
         let CLINIC_SHORT = 'WCC';
+        // วัน/เวลาเปิดให้บริการของคลินิก (ตั้งที่หน้าแอดมิน) — ค่าตั้งต้น = วันพุธ 8:00–11:30
+        let SERVICE_DAY = 3, SERVICE_START = '8:00', SERVICE_END = '11:30';
+        const DAY_NAMES_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+        const serviceDayName = () => DAY_NAMES_TH[SERVICE_DAY];
+        const clinicTimeText = () => SERVICE_START + '-' + SERVICE_END + 'น.';
+        // ข้อความรอบจากชีต/ฐานข้อมูลขึ้นต้นด้วยชื่อวัน — แทนด้วยวันที่คลินิกตั้งไว้ในปัจจุบัน
+        // ข้อความรอบ: ถ้าเป็นแบบที่ระบบสร้างให้ ("วันพุธ สัปดาห์ที่ 1,3,5 เวลา …") ประกอบใหม่จากวัน/สัปดาห์/เวลาปัจจุบัน; ข้อความที่แอดมินเขียนเองคงไว้ทุกตัวอักษร
+        const scheduleLabel = vac => {
+            const t = String(vac.schedule || '');
+            if (/^วัน\S+ สัปดาห์ที่ [\d,]+( เวลา .*)?$/.test(t) && Array.isArray(vac.weeks) && vac.weeks.length) {
+                return 'วัน' + serviceDayName() + ' สัปดาห์ที่ ' + vac.weeks.join(',') + ' เวลา ' + (vac.time || clinicTimeText());
+            }
+            return t;
+        };
+        function applyServiceLabels() { document.querySelectorAll('[data-service-day]').forEach(el => { el.textContent = serviceDayName(); }); }
         async function applyClinicSettings() {
             try {
                 const ctrl = new AbortController();
@@ -1275,6 +1324,16 @@
                     CLINIC_SHORT = s.clinicShort;
                     document.querySelectorAll('[data-clinic-short]').forEach(el => { el.textContent = CLINIC_SHORT; });
                 }
+                // วัน/เวลาเปิดให้บริการ — ตรวจรูปแบบก่อนใช้ ไม่ถูกก็คงค่าตั้งต้น
+                const okT = t => typeof t === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(t);
+                if (Number.isInteger(s.serviceWeekday) && s.serviceWeekday >= 1 && s.serviceWeekday <= 6) SERVICE_DAY = s.serviceWeekday;
+                if (okT(s.serviceStart) && okT(s.serviceEnd)) { SERVICE_START = s.serviceStart; SERVICE_END = s.serviceEnd; }
+                applyServiceLabels();
+                // PCV เข็มเดี่ยว (ตั้งที่หน้าแอดมิน) — ตรวจรูปแบบก่อนใช้ ถ้าไม่ถูกก็คงค่าตั้งต้น
+                if (Array.isArray(s.pcvWeeks) && s.pcvWeeks.length && s.pcvWeeks.every(w => Number.isInteger(w) && w >= 1 && w <= 5)) PCV_WEEKS = s.pcvWeeks.slice();
+                if (has('pcvProduct')) PCV_PRODUCT = Object.assign({}, PCV_PRODUCT, { name: s.pcvProduct.trim() });
+                if (Number.isInteger(s.pcvMaxAgeMonths) && s.pcvMaxAgeMonths >= 6) PCV_PRODUCT = Object.assign({}, PCV_PRODUCT, { maxAgeMonths: s.pcvMaxAgeMonths });
+                if (has('pcvAdvice')) PCV_PRODUCT = Object.assign({}, PCV_PRODUCT, { advice: s.pcvAdvice.trim() });
                 if (has('appTitle') && has('hospitalName')) document.title = s.appTitle + ' - ' + s.hospitalName;
             } catch (e) { /* ใช้ค่าที่ฝังไว้ */ }
         }
@@ -1412,7 +1471,7 @@
                     <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">
                         <div class="flex items-center justify-between mb-4 border-b pb-3"><h3 class="text-lg font-black text-green-700">📌 อายุ ${vac.name}</h3></div>
                         <div class="space-y-2 mb-4">${vacListHtml}</div>
-                        <div class="bg-blue-50 text-blue-800 text-xs px-3 py-2 rounded-lg font-bold flex items-center mb-2"><span class="mr-2">📅</span> รอบ: ${vac.schedule}</div>
+                        <div class="bg-blue-50 text-blue-800 text-xs px-3 py-2 rounded-lg font-bold flex items-center mb-2"><span class="mr-2">📅</span> รอบ: ${scheduleLabel(vac)}</div>
                         ${vac.special ? `<div class="bg-red-50 text-red-700 p-2.5 rounded-lg text-xs font-bold flex items-start"><span class="mr-2">⚠️</span><span>${vac.special}</span></div>` : ''}
                         ${pcvRoundNote(code)}
                     </div>`;
@@ -1562,7 +1621,7 @@
         function getWednesdaysForMonthGroup(year, month, weeks) {
             const dates = [];
             let d = new Date(year, month, 1);
-            while (d.getDay() !== 3) {
+            while (d.getDay() !== SERVICE_DAY) {
                 d.setDate(d.getDate() + 1);
             }
             while (d.getMonth() === month) {
@@ -1692,6 +1751,7 @@
 
             const code = determineVaccineAge(age);
             
+            document.getElementById('modalRotaAlert').classList.add('hidden');
             const cvc = document.getElementById('modalCurrentVaccineContent');
             const nnc = document.getElementById('modalNextApptContent');
             cvc.innerHTML = ''; nnc.innerHTML = ''; cvc.classList.add('hidden'); nnc.classList.add('hidden');
@@ -1704,6 +1764,27 @@
                 const overAgeWarn = totalMonths >= AGE_WARN_MONTHS
                     ? `<div class="mt-2 bg-amber-100 border border-amber-400 text-amber-900 text-xs font-bold p-2 rounded flex items-start"><span class="mr-1">⚠️</span><span>อายุเกิน ${AGE_WARN_MONTHS / 12} ปี — เกินเกณฑ์ ${CLINIC_SHORT} ปกติ ตรวจสอบประวัติวัคซีน / พิจารณาส่งต่อ</span></div>`
                     : '';
+                // Rota: การ์ดแดงต่อจากการ์ดอายุสัปดาห์ (เข็มแรกต้องเริ่มก่อน 15 สัปดาห์ / ครบก่อน 8 เดือน = 32 สัปดาห์)
+                const rotaVac = (vaccineSchedules[code].vaccines || []).find(v => /^rota/i.test(v.name));
+                if (rotaVac) {
+                    const ageWeeks = Math.floor((vDate - bDate) / 86400000 / 7);
+                    const isFirst = /1$/.test(rotaVac.name.trim());
+                    // ไม่รู้ว่าเด็กเคยได้ Rota มาแล้วกี่เข็ม (ชื่อในตารางเป็นเข็ม "ตามรอบอายุ") จึงแสดงเงื่อนไขทั้งเข็มแรกและเข็มสุดท้ายพร้อมกัน
+                    const dl = (d) => { const x = new Date(bDate); x.setDate(x.getDate() + d); return x; };
+                    const days = (d) => Math.round((dl(d) - vDate) / 86400000);
+                    const firstTxt = ageWeeks >= 15
+                        ? '⛔ <b>เข็มแรก:</b> เกิน 15 สัปดาห์แล้ว — ถ้าเด็กยังไม่เคยได้ Rota เลย <b>ห้ามเริ่ม</b> (เสี่ยงลำไส้กลืนกัน)'
+                        : `⚠️ <b>เข็มแรก:</b> ต้องเริ่มก่อนอายุครบ 15 สัปดาห์ — ถ้ายังไม่เคยได้ ให้ได้ถึงวันที่ ${formatHosxpDate(dl(104))} (เหลือ ${days(104)} วัน)`;
+                    const lastTxt = ageWeeks >= 32
+                        ? '⛔ <b>เข็มสุดท้าย:</b> เกิน 32 สัปดาห์ (8 เดือน) แล้ว — <b>ไม่ควรให้</b> ปรึกษาแพทย์'
+                        : `⚠️ <b>เข็มสุดท้าย:</b> ต้องครบก่อนอายุ 8 เดือน (32 สัปดาห์) = ก่อนวันที่ ${formatHosxpDate(dl(224))} (เหลือ ${days(224)} วัน)`;
+                    const blocked = ageWeeks >= 32 || (isFirst && ageWeeks >= 15);
+                    const t = blocked ? `⛔ ${rotaVac.name}: เกินเกณฑ์อายุของ Rota` : `⚠️ Rota (รอบนี้ตามตาราง ${rotaVac.name}) — ตรวจประวัติว่าเคยได้มาแล้วกี่เข็ม`;
+                    const m = `<b>เด็กอายุ ${ageWeeks} สัปดาห์ โปรดตรวจสอบ</b>`;
+                    const ra = document.getElementById('modalRotaAlert');
+                    ra.innerHTML = `<div class="ra-l"><div class="ra-t">${t}</div><div class="ra-b">${m}</div></div><div class="ra-r"><div class="ra-b">${firstTxt}</div><div class="ra-b">${lastTxt}</div></div>`;
+                    ra.classList.remove('hidden');
+                }
                 buildCurrentVaccineModalCard(code, "✅ ต้องฉีด \"วันนี้\"", overAgeWarn);
                 buildNextAppointmentModalCard(code, vDate, bDate, 'normal');
                 appendNextVaccineList(code);
@@ -1755,17 +1836,17 @@
         // 💉 PCV — ตรรกะอยู่ใน pcv-rules.js (ไม่แตะ DOM) ตรงนี้ทำเฉพาะ UI
         // =========================================================
         // PCV เดี่ยว (ไม่ไปพร้อมวัคซีนอื่น) เปิดทุกวันพุธ ช่วงเช้า — ถ้าคลินิกเปลี่ยนเป็นเว้นสัปดาห์ ให้แก้ที่ค่านี้ที่เดียว
-        const PCV_WEEKS = [1, 2, 3, 4, 5];
+        let PCV_WEEKS = [1, 2, 3, 4, 5];   // ค่าตั้งต้น — แอดมินปรับได้ที่หน้าตั้งค่า (applyClinicSettings อ่านจาก /data/settings.json)
         // วัคซีน PCV ของแผนงานที่ใช้อยู่ + อายุสูงสุดที่ทะเบียนรับรอง (เดือน) — เข็มที่ตกอายุเกินนี้ใช้วัคซีนนี้ไม่ได้ (ระบบขึ้นคำเตือน)
         // ถ้าแผนงานเปลี่ยนวัคซีน แก้ที่นี่ที่เดียว (ปัจจุบัน SII PNEUMOSIL: 6 สัปดาห์ ถึงก่อนครบ 2 ปี = 24 เดือน)
-        const PCV_PRODUCT = { name: 'SII PNEUMOSIL', maxAgeMonths: 24, advice: 'แนะนำผู้ปกครองไปฉีดเข็มนี้ที่อื่นด้วย PCV ชนิดอื่น (คลินิกไม่มี PCV ชนิดอื่น และไม่มีการส่งต่อ)' };
+        let PCV_PRODUCT = { name: 'SII PNEUMOSIL', maxAgeMonths: 24, advice: 'แนะนำผู้ปกครองไปฉีดเข็มนี้ที่อื่นด้วย PCV ชนิดอื่น (คลินิกไม่มี PCV ชนิดอื่น และไม่มีการส่งต่อ)' };
         const PCV_ROUND_NOTE_CODES = ['6m', '9m', '1y', '18m'];
 
         function pcvEnv() {
             return { findDate: findNextApptDate, weeksFor: c => vaccineSchedules[c].weeks, pcvWeeks: PCV_WEEKS, product: PCV_PRODUCT };
         }
         function pcvSoloText() {
-            return PCV_WEEKS.length >= 5 ? 'ทุกวันพุธ' : 'วันพุธ สัปดาห์ที่ ' + PCV_WEEKS.join(',');
+            return PCV_WEEKS.length >= 5 ? 'ทุกวัน' + serviceDayName() : 'วัน' + serviceDayName() + ' สัปดาห์ที่ ' + PCV_WEEKS.join(',');
         }
         /**
          * แสดงอายุเด็กทันทีที่กรอกวันเกิด/วันที่มารับบริการ (ไม่ต้องกดคำนวณ) เพื่อให้เลือก "อายุตอนฉีดเข็มแรก" ได้
@@ -2243,6 +2324,22 @@
             if(e) e.stopPropagation();
             navigator.clipboard.writeText(text).then(()=>alert(`📋 ก๊อปปี้ "${text}" แล้ว! วางลง HosXP ได้เลย`));
         }
+        // เปิด/ปิด "ดูแผน PCV ทั้งหมด": ล็อกความสูงการ์ดอื่นไว้เท่าก่อนเปิด ให้เฉพาะการ์ด PCV ยืดลง ไม่ลากการ์ดข้างเคียงตาม
+        // เปิด/ปิด "ดูแผน PCV ทั้งหมด": ล็อกความสูงการ์ดอื่นไว้ "ก่อน" เปิด (ตอนคลิก) ให้เฉพาะการ์ด PCV ยืดลง
+        // ไม่ล็อกตอน toggle เพราะยิงหลังเลย์เอาต์เปลี่ยนแล้ว → การ์ดจะหดแวบหนึ่งแล้วดีดกลับ (เห็นเป็นกระพริบ)
+        function wccOtherCards() { return [...document.querySelectorAll('.wcc-rgrid > div')].filter(x => x.id !== 'modalPcvContent' && !x.classList.contains('hidden') && x.id !== 'modalCalendarArea'); }
+        document.addEventListener('click', function (e) {
+            const sm = e.target.closest && e.target.closest('#modalPcvContent summary'); if (!sm) return;
+            const host = sm.closest('#modalPcvContent');
+            if (!sm.parentElement.open) {
+                const h0 = host.offsetHeight;
+                wccOtherCards().forEach(x => x.style.setProperty('height', h0 + 'px', 'important'));
+            }
+        }, true);
+        document.addEventListener('toggle', function (e) {
+            const d = e.target; if (!d || d.tagName !== 'DETAILS' || !d.closest('#modalPcvContent')) return;
+            if (!d.open) wccOtherCards().forEach(x => x.style.removeProperty('height'));
+        }, true);
         function copyStaffText(id) {
             const txt = document.getElementById(id || 'staffText').innerText;
             navigator.clipboard.writeText(txt).then(()=>alert('📋 ก๊อปปี้ข้อความพยาบาลเรียบร้อย ครบถ้วนพร้อมวางใน HosXP!'));
@@ -2262,11 +2359,11 @@
                     </div>
                     <div class="p-4 flex-1 flex flex-col justify-center space-y-2 relative">
                         ${list}
-                        ${vac.time ? `
+                        ${(vac.time || clinicTimeText()) ? `
                         <div class="mt-2 flex items-center gap-2 bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold px-3 py-2 rounded-lg shadow-sm">
                             <svg class="w-4 h-4 text-teal-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
                             <span class="text-teal-600 font-black shrink-0">เวลาให้บริการ:</span>
-                            <span class="text-teal-900">${vac.time}</span>
+                            <span class="text-teal-900">${vac.time || clinicTimeText()}</span>
                         </div>` : ''}
                         ${vac.special ? `<div class="mt-1 bg-red-100 border border-red-300 text-red-800 text-xs font-bold p-2 rounded flex items-start"><span class="mr-1">⚠️</span>${vac.special}</div>` : ''}
                         ${extraWarningHtml || ''}
@@ -2439,14 +2536,14 @@
             container.innerHTML = `<div class="bg-red-50 border-2 border-red-400 rounded-2xl p-6 text-center shadow-sm h-full flex flex-col justify-center">
                     <span class="text-4xl block mb-2">🔍</span>
                     <span class="text-red-900 font-black">หาวันเปิดให้บริการไม่พบ</span>
-                    <span class="text-red-700 text-xs font-bold mt-2 leading-snug">ค้นหาล่วงหน้าเกิน 2 ปีแล้วยังไม่เจอวันพุธที่ตรงเกณฑ์ของ "${vacName}"<br>กรุณาตรวจสอบสัปดาห์ที่ตั้งไว้ในตารางวัคซีน (หน้า ตั้งค่า)</span>
+                    <span class="text-red-700 text-xs font-bold mt-2 leading-snug">ค้นหาล่วงหน้าเกิน 2 ปีแล้วยังไม่เจอวัน${serviceDayName()}ที่ตรงเกณฑ์ของ "${vacName}"<br>กรุณาตรวจสอบสัปดาห์ที่ตั้งไว้ในตารางวัคซีน (หน้า ตั้งค่า)</span>
                 </div>`;
             container.classList.remove('hidden');
             document.getElementById('modalCalendarArea').classList.add('hidden');
         }
 
         function findNextApptDate(start, weeks) {
-            let d = new Date(start); while (d.getDay() !== 3) d.setDate(d.getDate() + 1);
+            let d = new Date(start); while (d.getDay() !== SERVICE_DAY) d.setDate(d.getDate() + 1);
             for(let i=0; i<100; i++) {
                 if (weeks.includes(Math.ceil(d.getDate()/7)) && !getHolidayForDate(d)) return d;
                 d.setDate(d.getDate() + 7);
@@ -2456,7 +2553,7 @@
         function findAltDates(start, weeks, limit) {
             let alt = [], d = new Date(start); d.setDate(d.getDate()+7);
             for(let i=0; i<limit*4 && alt.length<limit; i++) {
-                while(d.getDay() !== 3) d.setDate(d.getDate()+1);
+                while(d.getDay() !== SERVICE_DAY) d.setDate(d.getDate()+1);
                 if(weeks.includes(Math.ceil(d.getDate()/7)) && !getHolidayForDate(d)) alt.push(new Date(d));
                 d.setDate(d.getDate()+7);
             }
