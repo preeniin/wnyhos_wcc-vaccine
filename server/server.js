@@ -167,8 +167,9 @@ function send(res, code, body, type, extra) {
 const json = (res, code, obj, extra) => send(res, code, JSON.stringify(obj), 'application/json; charset=utf-8', extra);
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let size = 0; const chunks = [];
-    req.on('data', c => { size += c.length; if (size > MAX_BODY) { reject(new L.ValidationError('ข้อมูลใหญ่เกินไป')); req.destroy(); } else chunks.push(c); });
+    let size = 0, tooBig = false; const chunks = [];
+    // เกินขนาด: ไม่เก็บข้อมูลเพิ่ม (กันกินหน่วยความจำ) แต่ไม่ตัดการเชื่อมต่อ — ให้ตอบ 400 กลับไปได้ เพื่อให้หน้าแอดมินแสดงข้อความที่อ่านรู้เรื่อง
+    req.on('data', c => { if (tooBig) return; size += c.length; if (size > MAX_BODY) { tooBig = true; chunks.length = 0; reject(new L.ValidationError('ข้อมูลใหญ่เกินไป')); } else chunks.push(c); });
     req.on('end', () => {
       try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); }
       catch (e) { reject(new L.ValidationError('JSON ไม่ถูกต้อง')); }
@@ -282,7 +283,7 @@ const server = http.createServer(async (req, res) => {
         const b = await readBody(req);
         const next = Object.assign({}, store);
         const done = [], touched = [];
-        if (typeof b.vaccinesCsv === 'string' && b.vaccinesCsv.trim()) { next.vaccines = L.parseVaccinesCsv(b.vaccinesCsv); done.push(`vaccines ${next.vaccines.length}`); touched.push('vaccines'); }
+        if (typeof b.vaccinesCsv === 'string' && b.vaccinesCsv.trim()) { next.vaccines = L.parseVaccinesCsv(b.vaccinesCsv, store.settings); done.push(`vaccines ${next.vaccines.length}`); touched.push('vaccines'); }
         if (typeof b.holidaysCsv === 'string' && b.holidaysCsv.trim()) { next.holidays = L.parseHolidaysCsv(b.holidaysCsv); done.push(`holidays ${next.holidays.length}`); touched.push('holidays'); }
         if (!done.length) throw new L.ValidationError('ไม่มีข้อมูล CSV ให้นำเข้า');
         next.rev = bumpRev(...touched);   // ใครที่เปิดหน้าค้างไว้ จะบันทึกทับข้อมูลที่เพิ่งนำเข้าไม่ได้ (ได้ 409)

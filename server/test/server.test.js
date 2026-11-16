@@ -184,6 +184,13 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
     { ...def, pcvWeeks: [1, 6] },             // PCV: สัปดาห์นอกช่วง 1–5
     { ...def, pcvMaxAgeMonths: 2 },           // PCV: อายุสูงสุดต่ำเกิน
     { ...def, pcvProduct: '<b>' },            // PCV: อักขระต้องห้าม
+    { ...def, pcvSession: 'กลางคืน' },       // PCV: ช่วงเวลาต้องเช้า/บ่าย
+    { ...def, pcvTime: '15:00-13:00น.' },    // PCV: เวลาเริ่มต้องน้อยกว่าเวลาเลิก
+    { ...def, rotaAuto: 'yes' },                              // โรต้า: โหมดต้องเป็น boolean
+    { ...def, rotaAuto: false, rotaNames: ['Rota1'], rotaFirst: 'Rota9' },   // โรต้า: เข็มแรกต้องอยู่ในรายการที่เลือก
+    { ...def, rotaNames: ['a<b'] },
+    { ...def, rotaDoses: 4 },                                   // โรต้า: สูตรต้อง 2 หรือ 3 เข็ม
+    { ...def, rotaDoses: '2' },                             // โรต้า: อักขระต้องห้าม
     { ...def, serviceWeekday: 0 },            // วันให้บริการ: อาทิตย์ไม่อนุญาต
     { ...def, serviceWeekday: 'พุธ' },        // วันให้บริการ: ต้องเป็นตัวเลข
     { ...def, serviceStart: '12:00', serviceEnd: '9:00' },   // เวลาเปิดต้องก่อนเวลาปิด
@@ -203,6 +210,14 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
   assert.equal(pcv.status, 200);
   const got = await (await fetch(base + '/data/settings.json')).json();
   assert.deepEqual(got.pcvWeeks, [1, 3]);
+  const ro = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: { ...def, clinicShort: 'TST', rotaAuto: false, rotaNames: ['โรต้า 1', 'โรต้า 2', 'โรต้า 1'], rotaFirst: 'โรต้า 1', rotaDoses: 2 } }) });
+  assert.equal(ro.status, 200);
+  const gr = await (await fetch(base + '/data/settings.json')).json();
+  assert.equal(gr.rotaAuto, false); assert.deepEqual(gr.rotaNames, ['โรต้า 1', 'โรต้า 2']); assert.equal(gr.rotaFirst, 'โรต้า 1'); assert.equal(gr.rotaDoses, 2);
+  const pt = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: { ...def, clinicShort: 'TST', pcvSession: 'บ่าย', pcvTime: '13:00 - 15:00 น' } }) });
+  assert.equal(pt.status, 200);
+  const gp = await (await fetch(base + '/data/settings.json')).json();
+  assert.equal(gp.pcvSession, 'บ่าย'); assert.equal(gp.pcvTime, '13:00-15:00น.');
   // วัน/เวลาให้บริการ: ตั้งเป็นพฤหัส 9:00–12:00 แล้วข้อความรอบอัตโนมัติของแถวใหม่ต้องใช้ชื่อวันตามที่ตั้ง + เวลาของวัคซีนต้องรูปแบบมาตรฐาน
   const svc = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: JSON.stringify({ settings: { ...def, clinicShort: 'TST', serviceWeekday: 4, serviceStart: '09:00', serviceEnd: '12:00' } }) });
   assert.equal(svc.status, 200);
@@ -210,6 +225,15 @@ test('ข้อมูลคลินิก: public อ่านได้, แก
   assert.equal(g2.serviceWeekday, 4); assert.equal(g2.serviceStart, '9:00'); assert.equal(g2.serviceEnd, '12:00');
   const vacs = (await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).vaccines;
   const mk = time => vacs.map((x, i) => i === 0 ? { ...x, schedule: '', time } : x);
+  // ข้อความรอบแบบอัตโนมัติต้องตามวันที่ตั้ง (พฤหัสบดี) ส่วนข้อความที่แอดมินเขียนเองต้องไม่ถูกแตะ
+  const sv = (await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).vaccines;
+  const mk2 = (sched0, sched1) => sv.map((x, i) => i === 0 ? { ...x, schedule: sched0 } : i === 1 ? { ...x, schedule: sched1 } : x);
+  const rs = await fetch(base + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: mk2('วันพุธ สัปดาห์ที่ 1,3,5 เวลา 8:00-11:30น.', 'วันพุธ พิเศษ ยกเว้นเดือน ธ.ค.') }) });
+  assert.equal(rs.status, 200);
+  const after2 = (await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).vaccines;
+  assert.match(after2[0].schedule, /^วันพฤหัสบดี สัปดาห์ที่ /, 'ข้อความอัตโนมัติต้องตามวันที่ตั้ง');
+  assert.equal(after2[1].schedule, 'วันพุธ พิเศษ ยกเว้นเดือน ธ.ค.', 'ข้อความที่เขียนเองต้องไม่ถูกแตะ');
+  await fetch(base + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: sv }) });
   const okV = await fetch(base + '/api/admin/vaccines', { method: 'PUT', headers: H, body: JSON.stringify({ vaccines: mk('9:00 - 11:30 น') }) });
   assert.equal(okV.status, 200);
   const v0 = (await (await fetch(base + '/api/admin/store', { headers: { cookie } })).json()).vaccines[0];
@@ -448,6 +472,15 @@ test('อัปเกรดจากข้อมูลบนเซิร์ฟ�
     assert.equal(r.status, 200);
     assert.equal((await (await fetch(b + '/api/admin/store', { headers: { cookie } })).json()).vaccines[0].special, 'ข้อมูลเดิมบนเซิร์ฟเวอร์');
   } finally { p.kill(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('คำขอที่ใหญ่เกิน 1 MB → ตอบ 400 พร้อมข้อความ (ไม่ตัดการเชื่อมต่อ) และ JSON เสียก็ตอบ 400', async () => {
+  const { cookie } = await login(); const H = { ...J, cookie };
+  const big = await fetch(base + '/api/admin/holidays', { method: 'PUT', headers: H, body: JSON.stringify({ holidays: [], pad: 'x'.repeat(3 * 1024 * 1024) }) });
+  assert.equal(big.status, 400); assert.match((await big.json()).error, /ใหญ่เกิน/);
+  const bad = await fetch(base + '/api/admin/settings', { method: 'PUT', headers: H, body: '{bad' });
+  assert.equal(bad.status, 400);
+  assert.equal((await fetch(base + '/healthz')).status, 200, 'server ต้องยังอยู่');
 });
 
 test('logout แล้ว session ใช้ไม่ได้', async () => {

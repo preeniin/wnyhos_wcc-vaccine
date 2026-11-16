@@ -361,7 +361,14 @@
         @keyframes wccAlertBlink { 0%, 100% { background: #dc2626; box-shadow: 0 4px 0 #7f1d1d, 0 0 0 0 rgba(220,38,38,.8); } 50% { background: #7f1d1d; box-shadow: 0 4px 0 #450a0a, 0 0 18px 6px rgba(220,38,38,.75); } }
         @media (prefers-reduced-motion: reduce) { #modalRotaAlert { animation-duration: 2.4s; } }
         #modalAgeSection > .grid > div:nth-child(3) { order: 3; }
-        @media (min-width: 768px) { #modalRotaAlert { flex: 1 1 0; min-width: 300px; } }
+        @media (min-width: 768px) { #modalRotaAlert { flex: 1 1 300px; min-width: 300px; } }
+        /* จอกลาง (iPad 768–1099px): แถวบนตัดบรรทัดได้ — การ์ด Rota กับกล่องคำแนะนำขึ้นบรรทัดของตัวเองเต็มความกว้าง ไม่ล้นออกนอกกรอบ */
+        @media (min-width: 768px) and (max-width: 1099px) {
+            #modalAgeSection > .grid { flex-wrap: wrap; }
+            #modalAgeSection > .grid > div:nth-child(1), #modalAgeSection > .grid > div:nth-child(2) { flex: 1 1 auto; }
+            #modalRotaAlert { flex: 1 1 100%; }
+            #modalAgeSection > .grid > div:nth-child(3) { flex: 1 1 100%; }
+        }
         #modalRotaAlert { display: flex; flex-direction: row; align-items: center; gap: 18px; padding: 8px 18px !important; }
         #modalRotaAlert .ra-l { flex: 1 1 0; min-width: 0; }
         #modalRotaAlert .ra-r { flex: 1.3 1 0; min-width: 0; border-left: 2px solid rgba(255,255,255,.45); padding-left: 16px; display: flex; flex-direction: column; gap: 6px; }
@@ -640,7 +647,7 @@
         <a id="adminLinkMobile" href="./admin" style="display:none" class="bg-teal-800 bg-opacity-40 text-white rounded-lg font-bold shadow border border-white border-opacity-40"> ⚙️ ตั้งค่า </a>
         </div>
     </div>
-    <div class="wcc-ver-row no-print"><div class="wcc-ver"><span>✨ เวอร์ชัน 62 · 16 พ.ย. 2569 09:34</span><span class="text-teal-100" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span></div></div>
+    <div class="wcc-ver-row no-print"><div class="wcc-ver"><span>✨ เวอร์ชัน 63 · 16 พ.ย. 2569 13:45</span><span class="text-teal-100" id="syncStatus">กำลังเชื่อมต่อฐานข้อมูล...</span></div></div>
    </div>
   </div>
 
@@ -1291,6 +1298,14 @@
          */
         let CLINIC_SHORT = 'WCC';
         // วัน/เวลาเปิดให้บริการของคลินิก (ตั้งที่หน้าแอดมิน) — ค่าตั้งต้น = วันพุธ 8:00–11:30
+        // โรต้า (การ์ดเตือนอายุ): auto = ตรวจจากชื่อวัคซีน/ชื่อไทย; แอดมินปิด auto แล้วเลือกชื่อจากตารางเองได้ (กรณีโรงพยาบาลตั้งชื่ออื่น)
+        const ROTA = { auto: true, names: [], first: '', doses: 3 };   // doses = สูตร 2 หรือ 3 เข็ม (เข็มสุดท้าย = เข็มที่ doses)
+        const ROTA_AUTO_RE = /rota|โรต้า|โรตา/i;
+        const rotaMatch = v => ROTA.auto ? (ROTA_AUTO_RE.test(v.name || '') || ROTA_AUTO_RE.test(v.thai || '')) : ROTA.names.includes(v.name);
+        // เข็มแรก: ถ้าแอดมินระบุชื่อไว้ใช้ชื่อนั้น ไม่งั้นดูเลขท้ายชื่อ (Rota1, โรต้า 1, Rota-1) — ไม่มีเลข = ไม่รู้ว่าเข็มไหน (การ์ดจะโชว์เงื่อนไขทั้งสองข้อเหมือนเดิม)
+        const rotaIsFirst = v => ROTA.first ? v.name === ROTA.first : /(^|\D)1\s*$/.test(String(v.name || '').trim());
+        // เลขเข็มของรอบนี้จากชื่อ (Rota2 → 2, โรต้า 3 → 3); เข็มที่แอดมินระบุว่าเป็นเข็มแรก = 1; ไม่มีเลข = null
+        const rotaDoseNo = v => { if (ROTA.first && v.name === ROTA.first) return 1; const m = /(\d+)\s*$/.exec(String(v.name || '').trim()); return m ? Number(m[1]) : null; };
         let SERVICE_DAY = 3, SERVICE_START = '8:00', SERVICE_END = '11:30';
         const DAY_NAMES_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
         const serviceDayName = () => DAY_NAMES_TH[SERVICE_DAY];
@@ -1299,7 +1314,7 @@
         // ข้อความรอบ: ถ้าเป็นแบบที่ระบบสร้างให้ ("วันพุธ สัปดาห์ที่ 1,3,5 เวลา …") ประกอบใหม่จากวัน/สัปดาห์/เวลาปัจจุบัน; ข้อความที่แอดมินเขียนเองคงไว้ทุกตัวอักษร
         const scheduleLabel = vac => {
             const t = String(vac.schedule || '');
-            if (/^วัน\S+ สัปดาห์ที่ [\d,]+( เวลา .*)?$/.test(t) && Array.isArray(vac.weeks) && vac.weeks.length) {
+            if (/^วัน(?:อาทิตย์|จันทร์|อังคาร|พุธ|พฤหัสบดี|ศุกร์|เสาร์) สัปดาห์ที่ [\d,]+(?: เวลา \d{1,2}:\d{2}-\d{1,2}:\d{2}น\.)?$/.test(t) && Array.isArray(vac.weeks) && vac.weeks.length) {
                 return 'วัน' + serviceDayName() + ' สัปดาห์ที่ ' + vac.weeks.join(',') + ' เวลา ' + (vac.time || clinicTimeText());
             }
             return t;
@@ -1324,17 +1339,30 @@
                     CLINIC_SHORT = s.clinicShort;
                     document.querySelectorAll('[data-clinic-short]').forEach(el => { el.textContent = CLINIC_SHORT; });
                 }
+                // โรต้า — ตรวจรูปแบบก่อนใช้ (ไม่ถูก = คงโหมดอัตโนมัติ)
+                if (typeof s.rotaAuto === 'boolean') ROTA.auto = s.rotaAuto;
+                if (Array.isArray(s.rotaNames) && s.rotaNames.every(x => typeof x === 'string')) ROTA.names = s.rotaNames.slice();
+                if (typeof s.rotaFirst === 'string') ROTA.first = s.rotaFirst;
+                if (s.rotaDoses === 2 || s.rotaDoses === 3) ROTA.doses = s.rotaDoses;
                 // วัน/เวลาเปิดให้บริการ — ตรวจรูปแบบก่อนใช้ ไม่ถูกก็คงค่าตั้งต้น
                 const okT = t => typeof t === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(t);
                 if (Number.isInteger(s.serviceWeekday) && s.serviceWeekday >= 1 && s.serviceWeekday <= 6) SERVICE_DAY = s.serviceWeekday;
                 if (okT(s.serviceStart) && okT(s.serviceEnd)) { SERVICE_START = s.serviceStart; SERVICE_END = s.serviceEnd; }
                 applyServiceLabels();
+                if (s.pcvSession === 'เช้า' || s.pcvSession === 'บ่าย') PCV_SESSION = s.pcvSession;
+                if (typeof s.pcvTime === 'string' && /^\d{1,2}:\d{2}-\d{1,2}:\d{2}น\.$/.test(s.pcvTime)) PCV_TIME = s.pcvTime; else if (s.pcvTime === '') PCV_TIME = '';
                 // PCV เข็มเดี่ยว (ตั้งที่หน้าแอดมิน) — ตรวจรูปแบบก่อนใช้ ถ้าไม่ถูกก็คงค่าตั้งต้น
                 if (Array.isArray(s.pcvWeeks) && s.pcvWeeks.length && s.pcvWeeks.every(w => Number.isInteger(w) && w >= 1 && w <= 5)) PCV_WEEKS = s.pcvWeeks.slice();
                 if (has('pcvProduct')) PCV_PRODUCT = Object.assign({}, PCV_PRODUCT, { name: s.pcvProduct.trim() });
                 if (Number.isInteger(s.pcvMaxAgeMonths) && s.pcvMaxAgeMonths >= 6) PCV_PRODUCT = Object.assign({}, PCV_PRODUCT, { maxAgeMonths: s.pcvMaxAgeMonths });
                 if (has('pcvAdvice')) PCV_PRODUCT = Object.assign({}, PCV_PRODUCT, { advice: s.pcvAdvice.trim() });
                 if (has('appTitle') && has('hospitalName')) document.title = s.appTitle + ' - ' + s.hospitalName;
+                // ถ้าตารางวัคซีนวาดไปแล้วก่อนที่ตั้งค่าจะมาถึง (โหลดจากแคชก่อน) → วาดส่วนที่ขึ้นกับวัน/เวลา/PCV ใหม่ ไม่ให้ค้างค่าเดิม
+                if (Object.keys(vaccineSchedules).length) {
+                    const dSel = document.getElementById('delayedAge'), keep = dSel ? dSel.value : '';
+                    populateDelayedDropdown(); if (dSel && keep) dSel.value = keep;
+                    renderVaccineScheduleTab(); render3YearTables();
+                }
             } catch (e) { /* ใช้ค่าที่ฝังไว้ */ }
         }
 
@@ -1459,7 +1487,7 @@
             select.innerHTML = '<option value="">-- เลือกอายุที่ต้องการนัด --</option>';
             Object.keys(vaccineSchedules).forEach(code => select.innerHTML += `<option value="${code}">${vaccineSchedules[code].name}</option>`);
             // PCV เข็มเดี่ยวไม่ผูกกับรอบอายุใดในชีต จึงเพิ่มเป็นตัวเลือกพิเศษท้ายรายการ
-            select.innerHTML += `<option value="PCV">💉 PCV (นิวโมค็อกคัส) เข็มเดี่ยว · ${pcvSoloText()} ช่วงเช้า</option>`;
+            select.innerHTML += `<option value="PCV">💉 PCV (นิวโมค็อกคัส) เข็มเดี่ยว · ${pcvSoloText()} ${pcvSessionText()}</option>`;
         }
 
         function renderVaccineScheduleTab() {
@@ -1765,22 +1793,30 @@
                     ? `<div class="mt-2 bg-amber-100 border border-amber-400 text-amber-900 text-xs font-bold p-2 rounded flex items-start"><span class="mr-1">⚠️</span><span>อายุเกิน ${AGE_WARN_MONTHS / 12} ปี — เกินเกณฑ์ ${CLINIC_SHORT} ปกติ ตรวจสอบประวัติวัคซีน / พิจารณาส่งต่อ</span></div>`
                     : '';
                 // Rota: การ์ดแดงต่อจากการ์ดอายุสัปดาห์ (เข็มแรกต้องเริ่มก่อน 15 สัปดาห์ / ครบก่อน 8 เดือน = 32 สัปดาห์)
-                const rotaVac = (vaccineSchedules[code].vaccines || []).find(v => /^rota/i.test(v.name));
+                const rotaVac = (vaccineSchedules[code].vaccines || []).find(rotaMatch);
                 if (rotaVac) {
                     const ageWeeks = Math.floor((vDate - bDate) / 86400000 / 7);
-                    const isFirst = /1$/.test(rotaVac.name.trim());
+                    const isFirst = rotaIsFirst(rotaVac);
+                    const N = ROTA.doses, k = rotaDoseNo(rotaVac);
                     // ไม่รู้ว่าเด็กเคยได้ Rota มาแล้วกี่เข็ม (ชื่อในตารางเป็นเข็ม "ตามรอบอายุ") จึงแสดงเงื่อนไขทั้งเข็มแรกและเข็มสุดท้ายพร้อมกัน
                     const dl = (d) => { const x = new Date(bDate); x.setDate(x.getDate() + d); return x; };
                     const days = (d) => Math.round((dl(d) - vDate) / 86400000);
+                    // d = จำนวนวันนับจากวันเกิดถึง "วันสุดท้ายที่ให้ได้" (เข็มแรก = 104 วัน = ก่อนครบ 15 สัปดาห์, เข็มสุดท้าย = 223 วัน = ก่อนครบ 32 สัปดาห์)
+                    const lastDayTxt = (d) => `${formatHosxpDate(dl(d))} ${days(d) === 0 ? '(วันนี้เป็นวันสุดท้าย)' : `(เหลืออีก ${days(d)} วัน)`}`;
                     const firstTxt = ageWeeks >= 15
                         ? '⛔ <b>เข็มแรก:</b> เกิน 15 สัปดาห์แล้ว — ถ้าเด็กยังไม่เคยได้ Rota เลย <b>ห้ามเริ่ม</b> (เสี่ยงลำไส้กลืนกัน)'
-                        : `⚠️ <b>เข็มแรก:</b> ต้องเริ่มก่อนอายุครบ 15 สัปดาห์ — ถ้ายังไม่เคยได้ ให้ได้ถึงวันที่ ${formatHosxpDate(dl(104))} (เหลือ ${days(104)} วัน)`;
+                        : `⚠️ <b>เข็มแรก:</b> ต้องเริ่มก่อนอายุครบ 15 สัปดาห์ — ถ้ายังไม่เคยได้ ให้ได้ถึงวันที่ ${lastDayTxt(104)}`;
                     const lastTxt = ageWeeks >= 32
-                        ? '⛔ <b>เข็มสุดท้าย:</b> เกิน 32 สัปดาห์ (8 เดือน) แล้ว — <b>ไม่ควรให้</b> ปรึกษาแพทย์'
-                        : `⚠️ <b>เข็มสุดท้าย:</b> ต้องครบก่อนอายุ 8 เดือน (32 สัปดาห์) = ก่อนวันที่ ${formatHosxpDate(dl(224))} (เหลือ ${days(224)} วัน)`;
+                        ? `⛔ <b>เข็มสุดท้าย (เข็มที่ ${N}):</b> เกิน 32 สัปดาห์ (8 เดือน) แล้ว — <b>ไม่ควรให้</b> ปรึกษาแพทย์`
+                        : `⚠️ <b>เข็มสุดท้าย (เข็มที่ ${N} · สูตร ${N} เข็ม):</b> ต้องฉีดให้ครบก่อนอายุ 8 เดือน (32 สัปดาห์) — ให้ได้ถึงวันที่ ${lastDayTxt(223)}`;
                     const blocked = ageWeeks >= 32 || (isFirst && ageWeeks >= 15);
                     const t = blocked ? `⛔ ${rotaVac.name}: เกินเกณฑ์อายุของ Rota` : `⚠️ Rota (รอบนี้ตามตาราง ${rotaVac.name}) — ตรวจประวัติว่าเคยได้มาแล้วกี่เข็ม`;
-                    const m = `<b>เด็กอายุ ${ageWeeks} สัปดาห์ โปรดตรวจสอบ</b>`;
+                    // รอบนี้เป็นเข็มที่เท่าไรของสูตร (รู้จากชื่อในตาราง) — ถ้าเลขเกินสูตรที่ตั้งไว้ แปลว่าตารางกับการตั้งค่าไม่ตรงกัน
+                    const doseLine = k === null ? '' : (k > N
+                        ? `<br>⚠️ ตารางมีโรต้าเข็มที่ ${k} เกินสูตร ${N} เข็ม — ตรวจตารางวัคซีน`
+                        : k === N ? `<br>รอบนี้ = เข็มที่ ${k} จาก ${N} (เข็มสุดท้าย)`
+                        : `<br>รอบนี้ = เข็มที่ ${k} จาก ${N} · ยังเหลืออีก ${N - k} เข็ม ต้องฉีดให้ครบก่อน 32 สัปดาห์`);
+                    const m = `<b>เด็กอายุ ${ageWeeks} สัปดาห์ โปรดตรวจสอบ</b>${doseLine}`;
                     const ra = document.getElementById('modalRotaAlert');
                     ra.innerHTML = `<div class="ra-l"><div class="ra-t">${t}</div><div class="ra-b">${m}</div></div><div class="ra-r"><div class="ra-b">${firstTxt}</div><div class="ra-b">${lastTxt}</div></div>`;
                     ra.classList.remove('hidden');
@@ -1836,7 +1872,7 @@
         // 💉 PCV — ตรรกะอยู่ใน pcv-rules.js (ไม่แตะ DOM) ตรงนี้ทำเฉพาะ UI
         // =========================================================
         // PCV เดี่ยว (ไม่ไปพร้อมวัคซีนอื่น) เปิดทุกวันพุธ ช่วงเช้า — ถ้าคลินิกเปลี่ยนเป็นเว้นสัปดาห์ ให้แก้ที่ค่านี้ที่เดียว
-        let PCV_WEEKS = [1, 2, 3, 4, 5];   // ค่าตั้งต้น — แอดมินปรับได้ที่หน้าตั้งค่า (applyClinicSettings อ่านจาก /data/settings.json)
+        let PCV_WEEKS = [1, 2, 3, 4, 5], PCV_SESSION = 'เช้า', PCV_TIME = '';   // ค่าตั้งต้น — แอดมินปรับได้ที่หน้าตั้งค่า (applyClinicSettings อ่านจาก /data/settings.json)
         // วัคซีน PCV ของแผนงานที่ใช้อยู่ + อายุสูงสุดที่ทะเบียนรับรอง (เดือน) — เข็มที่ตกอายุเกินนี้ใช้วัคซีนนี้ไม่ได้ (ระบบขึ้นคำเตือน)
         // ถ้าแผนงานเปลี่ยนวัคซีน แก้ที่นี่ที่เดียว (ปัจจุบัน SII PNEUMOSIL: 6 สัปดาห์ ถึงก่อนครบ 2 ปี = 24 เดือน)
         let PCV_PRODUCT = { name: 'SII PNEUMOSIL', maxAgeMonths: 24, advice: 'แนะนำผู้ปกครองไปฉีดเข็มนี้ที่อื่นด้วย PCV ชนิดอื่น (คลินิกไม่มี PCV ชนิดอื่น และไม่มีการส่งต่อ)' };
@@ -1845,6 +1881,8 @@
         function pcvEnv() {
             return { findDate: findNextApptDate, weeksFor: c => vaccineSchedules[c].weeks, pcvWeeks: PCV_WEEKS, product: PCV_PRODUCT };
         }
+        // ช่วงเวลา PCV เข็มเดี่ยว (ตั้งที่หน้าแอดมิน): "ช่วงเช้า" หรือ "ช่วงบ่าย 13:00-15:00น."
+        function pcvSessionText() { return 'ช่วง' + PCV_SESSION + (PCV_TIME ? ' ' + PCV_TIME : ''); }
         function pcvSoloText() {
             return PCV_WEEKS.length >= 5 ? 'ทุกวัน' + serviceDayName() : 'วัน' + serviceDayName() + ' สัปดาห์ที่ ' + PCV_WEEKS.join(',');
         }
@@ -2004,7 +2042,7 @@
                 </div>
                 <div class="p-4 flex-1 flex flex-col justify-center space-y-2">
                     <div class="flex items-center bg-white rounded p-2 shadow-sm border border-sky-100"><span class="text-xl mr-3">💉</span><div class="leading-tight"><div class="font-black text-sky-900">PCV</div><div class="text-[11px] text-sky-700 font-bold">วัคซีนนิวโมค็อกคัส</div></div></div>
-                    <div class="mt-2 flex items-center gap-2 bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold px-3 py-2 rounded-lg shadow-sm"><span class="text-teal-600 font-black shrink-0">เวลาให้บริการ:</span><span class="text-teal-900">${pcvSoloText()} ช่วงเช้า</span></div>
+                    <div class="mt-2 flex items-center gap-2 bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold px-3 py-2 rounded-lg shadow-sm"><span class="text-teal-600 font-black shrink-0">เวลาให้บริการ:</span><span class="text-teal-900">${pcvSoloText()} ${pcvSessionText()}</span></div>
                     <div class="text-[11px] text-gray-600 font-bold leading-snug">รอบปกติรับพร้อมรอบ 2 เดือน (เข็ม 1), 4 เดือน (เข็ม 2) และ 1 ปี (เข็ม 3) เด็กที่เริ่มช้าหรือต้องแยกวัน มารับเข็มเดี่ยวได้ตามวันที่แสดง ส่วนแผนของเด็กแต่ละคน ดูที่แท็บ "นัดตามอายุ" โดยกรอกวันเกิดและประวัติ PCV</div>
                 </div>
             </div>`;
@@ -2041,7 +2079,7 @@
                         </div>
                         <div class="mb-3 px-1"><div class="text-[11px] font-bold text-gray-500 mb-1">วัคซีนที่จะฉีดวันนั้น</div>
                             <div class="flex flex-wrap gap-1.5"><span class="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5">PCV${first.n}</span></div>
-                            <div class="mt-1.5 text-[11px] text-gray-500 font-bold leading-snug">มาเฉพาะ PCV · ช่วงเช้า ${pcvSoloText()}</div>
+                            <div class="mt-1.5 text-[11px] text-gray-500 font-bold leading-snug">มาเฉพาะ PCV · ${pcvSessionText()} ${pcvSoloText()}</div>
                             ${pcvGapChipHtml(first)}${notes}${warns}
                         </div>
                         <div class="bg-blue-100 text-blue-900 text-[11px] font-bold px-3 py-2 rounded-lg mb-3 flex flex-wrap justify-between items-center gap-1 border border-blue-200">
@@ -2288,13 +2326,13 @@
                 <p class="text-sm text-gray-500 font-bold mb-4">รับตามรอบปกติ หรือมารับแยกวันได้ในกรณีเริ่มช้า</p>
                 <div class="grid md:grid-cols-3 gap-3 mb-4">
                     <div class="bg-gray-50 border border-gray-200 rounded-xl p-3"><div class="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">รอบปกติ (ไปพร้อมวัคซีนอื่น)</div><ul class="text-sm font-bold text-gray-800 list-disc pl-5"><li>2 เดือน PCV1</li><li>4 เดือน PCV2</li><li>1 ปี PCV3 (กระตุ้น)</li></ul></div>
-                    <div class="bg-sky-50 border border-sky-400 rounded-xl p-3"><div class="text-[11px] font-black text-sky-700 uppercase tracking-wider mb-1">PCV เข็มเดี่ยว</div><div class="text-base font-black text-sky-900">${pcvSoloText()} ช่วงเช้า</div><div class="text-xs font-bold text-gray-600 mt-1">สำหรับเด็กที่เริ่มช้า หรือที่ต้องแยกวันจากวัคซีนอื่น ไม่ต้องรอรอบวัคซีนตามอายุ</div></div>
+                    <div class="bg-sky-50 border border-sky-400 rounded-xl p-3"><div class="text-[11px] font-black text-sky-700 uppercase tracking-wider mb-1">PCV เข็มเดี่ยว</div><div class="text-base font-black text-sky-900">${pcvSoloText()} ${pcvSessionText()}</div><div class="text-xs font-bold text-gray-600 mt-1">สำหรับเด็กที่เริ่มช้า หรือที่ต้องแยกวันจากวัคซีนอื่น ไม่ต้องรอรอบวัคซีนตามอายุ</div></div>
                     <div class="bg-gray-50 border border-gray-200 rounded-xl p-3"><div class="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">ระยะห่างระหว่างเข็ม</div><ul class="text-xs font-bold text-gray-800 list-disc pl-5 space-y-0.5"><li>เริ่มก่อน 12 เดือน: เข็ม 1→2 ห่างอย่างน้อย 4 สัปดาห์</li><li>เริ่ม 12–23 เดือน: ห่างอย่างน้อย 8 สัปดาห์</li><li>เข็มกระตุ้น: ห่างจากเข็ม 2 อย่างน้อย 8 สัปดาห์</li></ul></div>
                 </div>
                 <div class="bg-green-50 border border-green-300 text-green-800 text-sm font-bold rounded-xl px-4 py-2.5 mb-3">แผนของเด็กแต่ละคนขึ้นกับอายุที่เริ่มเข็มแรก กรอกวันเกิดและประวัติ PCV ที่แท็บ "คำนวณวันนัด" เพื่อดูวันนัดจริง</div>
                 <details class="border border-gray-200 rounded-xl bg-gray-50"><summary class="cursor-pointer px-4 py-2.5 font-black text-sm text-gray-700">ดูตารางตามอายุที่เริ่มเข็มแรก</summary>
                     <div class="overflow-x-auto px-4 pb-3"><table class="w-full min-w-[34rem] text-xs font-bold text-gray-800"><thead><tr class="text-left text-gray-500"><th class="py-1.5 pr-3">เริ่มตอน</th><th class="py-1.5 pr-3">เข็ม 1</th><th class="py-1.5 pr-3">เข็ม 2</th><th class="py-1.5">เข็ม 3 (กระตุ้น)</th></tr></thead><tbody>${rows}</tbody></table>
-                    <p class="mt-2 text-[11px] text-gray-500 font-bold">"ทันที" = ฉีดวันที่มารับบริการ · "เดี่ยว" = มาเฉพาะ PCV ${pcvSoloText()} ช่วงเช้า · เด็กอายุต่ำกว่า 2 เดือนหรือตั้งแต่ 24 เดือน ให้ปรึกษาเจ้าหน้าที่</p></div>
+                    <p class="mt-2 text-[11px] text-gray-500 font-bold">"ทันที" = ฉีดวันที่มารับบริการ · "เดี่ยว" = มาเฉพาะ PCV ${pcvSoloText()} ${pcvSessionText()} · เด็กอายุต่ำกว่า 2 เดือนหรือตั้งแต่ 24 เดือน ให้ปรึกษาเจ้าหน้าที่</p></div>
                 </details>
             </div>`;
         }
@@ -2330,10 +2368,9 @@
         function wccOtherCards() { return [...document.querySelectorAll('.wcc-rgrid > div')].filter(x => x.id !== 'modalPcvContent' && !x.classList.contains('hidden') && x.id !== 'modalCalendarArea'); }
         document.addEventListener('click', function (e) {
             const sm = e.target.closest && e.target.closest('#modalPcvContent summary'); if (!sm) return;
-            const host = sm.closest('#modalPcvContent');
             if (!sm.parentElement.open) {
-                const h0 = host.offsetHeight;
-                wccOtherCards().forEach(x => x.style.setProperty('height', h0 + 'px', 'important'));
+                // ล็อกแต่ละการ์ดที่ "ความสูงของตัวเองก่อนเปิด" (จอ 3 คอลัมน์ = เท่ากับความสูงแถว, จอแคบ/มือถือ = ความสูงตามเนื้อหาของมันเอง) — ห้ามใช้ความสูงของการ์ด PCV ให้ทุกใบ
+                wccOtherCards().forEach(x => x.style.setProperty('height', x.offsetHeight + 'px', 'important'));
             }
         }, true);
         document.addEventListener('toggle', function (e) {
